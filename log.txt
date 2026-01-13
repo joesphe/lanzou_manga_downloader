@@ -1,0 +1,693 @@
+(.venv) PS D:\manga_downloader> docker build --no-cache -t manga-downloader .
+[+] Building 91.7s (10/16)                                                      docker:desktop-linux
+ => [internal] load build definition from Dockerfile                                            0.0s
+ => => transferring dockerfile: 2.46kB                                                          0.0s 
+ => [internal] load metadata for docker.io/library/python:3.11-slim                             0.1s 
+ => [internal] load .dockerignore                                                               0.0s 
+ => => transferring context: 2B                                                                 0.0s 
+ => [ 1/12] FROM docker.io/library/python:3.11-slim@sha256:1dd3dca85e22886e44fcad1bb7ccab6691d  0.0s
+ => => resolve docker.io/library/python:3.11-slim@sha256:1dd3dca85e22886e44fcad1bb7ccab6691dfa  0.0s 
+ => [internal] load build context                                                               0.3s 
+ => => transferring context: 780.16kB                                                           0.2s 
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+ => [ 3/12] RUN apt-get update && apt-get install -y     wget     gnupg     unzip     xvfb     53.1s 
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.6s
+ => [ 5/12] COPY requirements.txt .                                                             0.1s 
+ => ERROR [ 6/12] RUN pip install --no-cache-dir -r requirements.txt                           17.7s 
+------
+ > [ 6/12] RUN pip install --no-cache-dir -r requirements.txt:
+2.317 Collecting altgraph==0.17.5 (from -r requirements.txt (line 1))
+2.646   Downloading altgraph-0.17.5-py2.py3-none-any.whl.metadata (7.5 kB)
+2.766 Collecting appdirs==1.4.4 (from -r requirements.txt (line 2))
+2.876   Downloading appdirs-1.4.4-py2.py3-none-any.whl.metadata (9.0 kB)
+3.024 Collecting attrs==25.4.0 (from -r requirements.txt (line 3))
+3.140   Downloading attrs-25.4.0-py3-none-any.whl.metadata (10 kB)
+3.296 Collecting beautifulsoup4==4.14.3 (from -r requirements.txt (line 4))
+3.402   Downloading beautifulsoup4-4.14.3-py3-none-any.whl.metadata (3.8 kB)
+3.527 Collecting bs4==0.0.2 (from -r requirements.txt (line 5))
+3.632   Downloading bs4-0.0.2-py2.py3-none-any.whl.metadata (411 bytes)
+3.780 Collecting certifi==2025.11.12 (from -r requirements.txt (line 6))
+3.887   Downloading certifi-2025.11.12-py3-none-any.whl.metadata (2.5 kB)
+4.350 Collecting cffi==2.0.0 (from -r requirements.txt (line 7))
+4.456   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+4.687 Collecting charset-normalizer==3.4.4 (from -r requirements.txt (line 8))
+4.799   Downloading charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+4.973 Collecting colorama==0.4.6 (from -r requirements.txt (line 9))
+5.081   Downloading colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+5.210 Collecting cssselect==1.3.0 (from -r requirements.txt (line 10))
+5.317   Downloading cssselect-1.3.0-py3-none-any.whl.metadata (2.6 kB)
+5.443 Collecting fake-useragent==2.2.0 (from -r requirements.txt (line 11))
+5.551   Downloading fake_useragent-2.2.0-py3-none-any.whl.metadata (17 kB)
+5.856 Collecting greenlet==3.3.0 (from -r requirements.txt (line 12))
+5.968   Downloading greenlet-3.3.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+6.105 Collecting h11==0.16.0 (from -r requirements.txt (line 13))
+6.210   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+6.338 Collecting idna==3.11 (from -r requirements.txt (line 14))
+6.452   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+6.624 Collecting importlib_metadata==8.7.0 (from -r requirements.txt (line 15))
+6.731   Downloading importlib_metadata-8.7.0-py3-none-any.whl.metadata (4.8 kB)
+6.861 Collecting lanzou-api==2.6.10 (from -r requirements.txt (line 16))
+6.982   Downloading lanzou_api-2.6.10-py3-none-any.whl.metadata (16 kB)
+7.337 Collecting lxml==6.0.2 (from -r requirements.txt (line 17))
+7.447   Downloading lxml-6.0.2-cp311-cp311-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (3.6 kB)
+7.566 Collecting lxml_html_clean==0.4.3 (from -r requirements.txt (line 18))
+7.671   Downloading lxml_html_clean-0.4.3-py3-none-any.whl.metadata (2.3 kB)
+7.797 Collecting outcome==1.3.0.post0 (from -r requirements.txt (line 19))
+7.903   Downloading outcome-1.3.0.post0-py2.py3-none-any.whl.metadata (2.6 kB)
+8.033 Collecting packaging==25.0 (from -r requirements.txt (line 20))
+8.140   Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+8.268 Collecting parse==1.20.2 (from -r requirements.txt (line 21))
+8.377   Downloading parse-1.20.2-py2.py3-none-any.whl.metadata (22 kB)
+8.516 Collecting pefile==2024.8.26 (from -r requirements.txt (line 22))
+8.624   Downloading pefile-2024.8.26-py3-none-any.whl.metadata (1.4 kB)
+8.781 Collecting playwright==1.57.0 (from -r requirements.txt (line 23))
+8.890   Downloading playwright-1.57.0-py3-none-manylinux1_x86_64.whl.metadata (3.5 kB)
+9.117 Collecting psutil==7.1.3 (from -r requirements.txt (line 24))
+9.222   Downloading psutil-7.1.3-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl.metadata (23 kB)
+9.355 Collecting pycparser==2.23 (from -r requirements.txt (line 25))
+9.462   Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+9.590 Collecting pyee==13.0.0 (from -r requirements.txt (line 26))
+9.699   Downloading pyee-13.0.0-py3-none-any.whl.metadata (2.9 kB)
+9.854 Collecting pyinstaller==6.17.0 (from -r requirements.txt (line 27))
+9.960   Downloading pyinstaller-6.17.0-py3-none-manylinux2014_x86_64.whl.metadata (8.5 kB)
+10.10 Collecting pyinstaller-hooks-contrib==2025.10 (from -r requirements.txt (line 28))
+10.21   Downloading pyinstaller_hooks_contrib-2025.10-py3-none-any.whl.metadata (16 kB)
+10.34 Collecting pyppeteer==2.0.0 (from -r requirements.txt (line 29))
+10.44   Downloading pyppeteer-2.0.0-py3-none-any.whl.metadata (7.1 kB)
+10.56 Collecting pyquery==2.0.1 (from -r requirements.txt (line 30))
+10.67   Downloading pyquery-2.0.1-py3-none-any.whl.metadata (9.0 kB)
+10.80 Collecting PySocks==1.7.1 (from -r requirements.txt (line 31))
+10.90   Downloading PySocks-1.7.1-py3-none-any.whl.metadata (13 kB)
+11.04 Collecting python-dotenv==1.2.1 (from -r requirements.txt (line 32))
+11.14   Downloading python_dotenv-1.2.1-py3-none-any.whl.metadata (25 kB)
+11.28 Collecting pywin32-ctypes==0.2.3 (from -r requirements.txt (line 33))
+11.39   Downloading pywin32_ctypes-0.2.3-py3-none-any.whl.metadata (3.9 kB)
+11.53 Collecting requests==2.31.0 (from -r requirements.txt (line 34))
+11.64   Downloading requests-2.31.0-py3-none-any.whl.metadata (4.6 kB)
+11.76 Collecting requests-html==0.10.0 (from -r requirements.txt (line 35))
+11.88   Downloading requests_html-0.10.0-py3-none-any.whl.metadata (15 kB)
+12.00 Collecting requests-toolbelt==1.0.0 (from -r requirements.txt (line 36))
+12.11   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)
+12.51 Collecting selenium==4.27.0 (from -r requirements.txt (line 37))
+12.62   Downloading selenium-4.27.0-py3-none-any.whl.metadata (7.1 kB)
+12.91 Collecting setuptools==80.9.0 (from -r requirements.txt (line 38))
+13.02   Downloading setuptools-80.9.0-py3-none-any.whl.metadata (6.6 kB)
+13.14 Collecting sniffio==1.3.1 (from -r requirements.txt (line 39))
+13.25   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+13.38 Collecting sortedcontainers==2.4.0 (from -r requirements.txt (line 40))
+13.48   Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+13.61 Collecting soupsieve==2.8 (from -r requirements.txt (line 41))
+13.72   Downloading soupsieve-2.8-py3-none-any.whl.metadata (4.6 kB)
+13.89 Collecting tqdm==4.67.1 (from -r requirements.txt (line 42))
+13.99   Downloading tqdm-4.67.1-py3-none-any.whl.metadata (57 kB)
+14.03      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.7/57.7 kB 1.6 MB/s eta 0:00:00
+14.16 Collecting trio==0.32.0 (from -r requirements.txt (line 43))
+14.27   Downloading trio-0.32.0-py3-none-any.whl.metadata (8.5 kB)
+14.40 Collecting trio-websocket==0.12.2 (from -r requirements.txt (line 44))
+14.50   Downloading trio_websocket-0.12.2-py3-none-any.whl.metadata (5.1 kB)
+14.63 Collecting typing_extensions==4.15.0 (from -r requirements.txt (line 45))
+14.74   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+14.89 Collecting urllib3==1.26.20 (from -r requirements.txt (line 46))
+15.00   Downloading urllib3-1.26.20-py2.py3-none-any.whl.metadata (50 kB)
+15.02      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.1/50.1 kB 2.5 MB/s eta 0:00:00
+15.15 Collecting w3lib==2.3.1 (from -r requirements.txt (line 47))
+15.26   Downloading w3lib-2.3.1-py3-none-any.whl.metadata (2.3 kB)
+15.39 Collecting webdriver-manager==4.0.2 (from -r requirements.txt (line 48))
+15.50   Downloading webdriver_manager-4.0.2-py2.py3-none-any.whl.metadata (12 kB)
+15.64 Collecting websocket-client==1.9.0 (from -r requirements.txt (line 49))
+15.74   Downloading websocket_client-1.9.0-py3-none-any.whl.metadata (8.3 kB)
+16.02 Collecting websockets==10.4 (from -r requirements.txt (line 50))
+16.13   Downloading websockets-10.4-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.4 kB)
+16.26 Collecting wsproto==1.3.2 (from -r requirements.txt (line 51))
+16.36   Downloading wsproto-1.3.2-py3-none-any.whl.metadata (5.2 kB)
+16.50 Collecting zipp==3.23.0 (from -r requirements.txt (line 52))
+16.61   Downloading zipp-3.23.0-py3-none-any.whl.metadata (3.6 kB)
+16.84 INFO: pip is looking at multiple versions of pyppeteer to determine which version is compatible with other requirements. This could take a while.
+16.93 ERROR: Cannot install -r requirements.txt (line 23), -r requirements.txt (line 29) and pyee==13.0.0 because these package versions have conflicting dependencies.
+16.93
+16.93 The conflict is caused by:
+16.93     The user requested pyee==13.0.0
+16.93     playwright 1.57.0 depends on pyee<14 and >=13
+16.93     pyppeteer 2.0.0 depends on pyee<12.0.0 and >=11.0.0
+16.93
+16.93 To fix this you could try to:
+16.93 1. loosen the range of package versions you've specified
+16.93 2. remove package versions to allow pip attempt to solve the dependency conflict
+16.93
+16.93 ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependency-resolution/#dealing-with-dependency-conflicts
+17.34
+17.34 [notice] A new release of pip is available: 24.0 -> 25.3
+17.34 [notice] To update, run: pip install --upgrade pip
+------
+Dockerfile:66
+--------------------
+  64 |
+  65 |     # 安装Python依赖
+  66 | >>> RUN pip install --no-cache-dir -r requirements.txt
+  67 |
+  68 |     # 复制应用代码
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c pip install --no-cache-dir -r requirements.txt" did not complete successfully: exit code: 1
+(.venv) PS D:\manga_downloader> docker build --no-cache -t manga-downloader .
+[+] Building 100.7s (11/16)                                                     docker:desktop-linux
+[+] Building 100.9s (12/16)                                                     docker:desktop-linux
+[+] Building 101.1s (13/16)                                                     docker:desktop-linux 
+ => [internal] load build context                                                               0.3s 
+[+] Building 101.2s (14/16)                                                     docker:desktop-linux
+ => [internal] load build context                                                               0.3s 
+[+] Building 101.4s (14/16)                                                     docker:desktop-linux 
+ => => transferring context: 779.18kB                                                           0.3s 
+[+] Building 101.5s (14/16)                                                     docker:desktop-linux 
+ => => transferring context: 779.18kB                                                           0.3s 
+[+] Building 101.7s (14/16)                                                     docker:desktop-linux 
+ => => transferring context: 779.18kB                                                           0.3s 
+[+] Building 101.8s (14/16)                                                     docker:desktop-linux 
+ => => transferring context: 779.18kB                                                           0.3s 
+[+] Building 101.9s (14/16)                                                     docker:desktop-linux 
+ => [ 3/12] RUN apt-get update && apt-get install -y     wget     gnupg     unzip     xvfb     60.6s 
+[+] Building 102.1s (14/16)                                                     docker:desktop-linux 
+ => [ 3/12] RUN apt-get update && apt-get install -y     wget     gnupg     unzip     xvfb     60.6s 
+[+] Building 102.2s (14/16)                                                     docker:desktop-linux 
+ => [ 3/12] RUN apt-get update && apt-get install -y     wget     gnupg     unzip     xvfb     60.6s 
+[+] Building 102.3s (14/16)                                                     docker:desktop-linux 
+ => [ 5/12] COPY requirements.txt .                                                             0.1s 
+[+] Building 102.5s (14/16)                                                     docker:desktop-linux 
+ => [ 7/12] COPY . .                                                                            3.2s 
+[+] Building 102.7s (14/16)                                                     docker:desktop-linux 
+ => [ 7/12] COPY . .                                                                            3.2s 
+[+] Building 102.8s (14/16)                                                     docker:desktop-linux 
+ => [ 7/12] COPY . .                                                                            3.2s 
+[+] Building 102.8s (14/16)                                                     docker:desktop-linux 
+ => [ 7/12] COPY . .                                                                            3.2s 
+[+] Building 102.9s (15/16)                                                     docker:desktop-linux 
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.1s (15/16)                                                     docker:desktop-linux 
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 103.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 104.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 105.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 106.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 107.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 108.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 109.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 110.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 111.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 112.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 113.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 114.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 115.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 116.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 117.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 118.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 119.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 120.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 121.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 122.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 123.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 124.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.1s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.4s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.7s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 125.9s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.0s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.2s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.3s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.5s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.6s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.8s (15/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 126.9s (16/16)                                                     docker:desktop-linux
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+[+] Building 127.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 127.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 127.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 127.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 127.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 127.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 128.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 129.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 130.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 131.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 132.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 133.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 134.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 135.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 136.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.1s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.4s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.8s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 137.9s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.0s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.2s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.3s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.5s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.6s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.7s (16/17)                                                     docker:desktop-linux
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s 
+[+] Building 138.8s (16/17)                                                     docker:desktop-linux
+[+] Building 145.8s (17/17) FINISHED                                            docker:desktop-linux 
+ => [internal] load build definition from Dockerfile                                            0.0s
+ => => transferring dockerfile: 2.46kB                                                          0.0s 
+ => [internal] load metadata for docker.io/library/python:3.11-slim                             0.1s
+ => [internal] load .dockerignore                                                               0.0s 
+ => => transferring context: 2B                                                                 0.0s
+ => [ 1/12] FROM docker.io/library/python:3.11-slim@sha256:1dd3dca85e22886e44fcad1bb7ccab6691d  0.0s 
+ => => resolve docker.io/library/python:3.11-slim@sha256:1dd3dca85e22886e44fcad1bb7ccab6691dfa  0.0s
+ => [internal] load build context                                                               0.3s 
+ => => transferring context: 779.18kB                                                           0.3s
+ => CACHED [ 2/12] WORKDIR /app                                                                 0.0s 
+ => [ 3/12] RUN apt-get update && apt-get install -y     wget     gnupg     unzip     xvfb     60.6s
+ => [ 4/12] RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmo  20.0s
+ => [ 5/12] COPY requirements.txt .                                                             0.1s 
+ => [ 6/12] RUN pip install --no-cache-dir -r requirements.txt                                 16.5s 
+ => [ 7/12] COPY . .                                                                            3.2s 
+ => [ 8/12] RUN mkdir -p backup/源代码备份/v1.0/                                                     
+0.3s
+ => [ 9/12] COPY backup/源代码备份/v1.0/lanzou_downloader.py .                                       
+0.1s
+ => [10/12] RUN mkdir -p downloads logs                                                         0.3s 
+ => [11/12] RUN pip install --upgrade webdriver-manager                                         1.7s 
+ => [12/12] RUN groupadd -r appuser && useradd -r -g appuser appuser     && chown -R appuser:  24.0s 
+ => exporting to image                                                                         18.7s 
+ => => exporting layers                                                                        11.8s 
+ => => exporting manifest sha256:7e299c6dcd7cdb75031fbc974bf6efae500553cf12b49871899d6ccbbec18  0.0s 
+ => => exporting config sha256:8af61008deed2865a1197fbdb76e40daa39b7b90e210b992b9af20ee0c019dd  0.0s 
+ => => exporting attestation manifest sha256:36dd6f77b72236f66248fde49e7497e43e81edade21ee8bfa  0.0s 
+ => => exporting manifest list sha256:1a6a02c84de39336237007eeb1ad5b63f1f70adc839e666f06d12677  0.0s 
+ => => naming to docker.io/library/manga-downloader:latest                                      0.0s 
+ => => unpacking to docker.io/library/manga-downloader:latest
