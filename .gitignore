@@ -153,10 +153,6 @@ temp/
 *.tmp
 *.temp
 
-# Browser driver binaries (they should be downloaded by webdriver-manager)
-chromedriver-win64/
-edgedriver_win64/
-
 # Backup files
 *.bak
 *.backup
