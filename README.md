@@ -14,7 +14,7 @@
 ## 系统要求
 
 - Windows 10/11
-- Chrome浏览器 或 Microsoft Edge浏览器
+- Chrome浏览器 (版本 122 或更高) 或 Microsoft Edge浏览器 (版本 122 或更高)
 - 至少2GB可用内存
 
 ## 使用方法
