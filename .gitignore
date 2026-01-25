@@ -194,3 +194,4 @@ _site_static/
 # Local configuration files
 config_local.py
 settings_local.py
+quick_git.txt
