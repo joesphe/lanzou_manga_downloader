@@ -600,7 +600,7 @@ class LanzouDownloader:
 def main():
     """主函数，使用硬编码的链接和密码"""
     print("=" * 60)
-    print("兰祖云漫画下载器 - DrissionPage版本")
+    print("蓝奏云漫画下载器")
     print("=" * 60)
     
     # 创建下载器实例，使用硬编码的默认值
