@@ -626,7 +626,9 @@ class LanzouDownloaderGUI:
         # 检查是否为打包后的exe（生产环境）
         if getattr(sys, 'frozen', False):
             # 生产环境：使用混淆解密
-            default_url, default_password = self._get_obfuscated_credentials()
+            # 创建一个临时的LanzouDownloader实例来获取混淆凭据
+            temp_downloader = LanzouDownloader()
+            default_url, default_password = temp_downloader._get_obfuscated_credentials()
         else:
             # 开发环境：从环境变量读取（不提供默认值，强制用户设置环境变量）
             url_from_env = os.environ.get('LANZOU_URL')
