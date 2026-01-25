@@ -202,3 +202,9 @@ config_local.py
 settings_local.py
 quick_git.txt
 蓝奏云漫画资源链接.txt
+
+# Executable files - exclude all .exe files
+*.exe
+
+# Executable files - exclude all .dll files
+*.dll
