@@ -22,6 +22,12 @@ downloads_temp/
 venv/
 env/
 
+# Environment variable files
+.env
+.env.local
+.env.production
+config.py
+
 # Spyder project settings
 .spyproject/
 # Rope project settings

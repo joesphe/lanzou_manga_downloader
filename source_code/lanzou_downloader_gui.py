@@ -10,6 +10,8 @@ from DrissionPage import Chromium, ChromiumOptions, SessionOptions
 import json
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import base64
+import hashlib
 
 # 配置日志
 # 创建logs目录（如果不存在）
@@ -37,19 +39,36 @@ logger = logging.getLogger(__name__)
 
 
 class LanzouDownloader:
-    # 硬编码的默认链接和密码
-    DEFAULT_URL = "https://wwzc.lanzoub.com/b00tc1sz4b"
-    DEFAULT_PASSWORD = "8255"
-    
-    def __init__(self, chrome_driver_path=None, edge_driver_path=None, headless=True, max_workers=1, browser="edge", browser_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", default_url=None, default_password=None):
+    def __init__(self, chrome_driver_path=None, edge_driver_path=None, headless=True, max_workers=3, browser="edge", 
+                 browser_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", default_url=None, 
+                 default_password=None):
+        # 检查是否为打包后的exe（生产环境）
+        if getattr(sys, 'frozen', False):
+            # 生产环境：使用混淆解密
+            if default_url is None or default_password is None:
+                self.default_url, self.default_password = self._get_obfuscated_credentials()
+            else:
+                self.default_url = default_url
+                self.default_password = default_password
+        else:
+            # 开发环境：从环境变量读取（不提供默认值，强制用户设置环境变量）
+            if default_url is None or default_password is None:
+                url_from_env = os.environ.get('LANZOU_URL')
+                password_from_env = os.environ.get('LANZOU_PASSWORD')
+                if not url_from_env or not password_from_env:
+                    raise ValueError("在开发环境中必须设置环境变量 LANZOU_URL 和 LANZOU_PASSWORD")
+                self.default_url = url_from_env
+                self.default_password = password_from_env
+            else:
+                self.default_url = default_url
+                self.default_password = default_password
+            
         self.chrome_driver_path = chrome_driver_path
         self.edge_driver_path = edge_driver_path
-        self.headless = True  # 强制无头模式，面向用户时禁用调试
-        self.max_workers = 1  # 修改为1，即单线下载（依次下载）
+        self.headless = headless
+        self.max_workers = max_workers
         self.browser = "edge"  # 固定使用Edge浏览器
         self.browser_path = browser_path  # 浏览器路径，默认为Edge
-        self.default_url = default_url or self.DEFAULT_URL
-        self.default_password = default_password or self.DEFAULT_PASSWORD
         self.files = []
         self.driver = None
         self.progress_callback = None  # 用于GUI回调的进度更新函数
@@ -106,6 +125,46 @@ class LanzouDownloader:
         so = SessionOptions(read_file=False)
         
         self.driver = Chromium(addr_or_opts=co, session_options=so)
+    
+    def _get_obfuscated_credentials(self):
+        """使用深度混淆技术获取凭证"""
+        import hashlib
+        
+        # 通过计算生成的正确混淆数据
+        url_obfuscated = [
+            0x0B, 0x30, 0xA2, 0x6D, 0x31, 0x15, 0x5A, 0x9F, 0x52, 0x1F, 0xC1, 0x28, 0x36, 0x7E, 0x8C, 0xCA, 
+            0x67, 0x18, 0x6C, 0x82, 0x57, 0x85, 0xF5, 0x9F, 0x7C, 0x20, 0xC4, 0x17, 0x95, 0x5B, 0x89, 0xD7, 
+            0x94, 0xED, 0x83
+        ]
+        
+        # 密码 "8255" 混淆数据
+        password_obfuscated = [0xBD, 0xF2, 0xFD, 0xA7]
+        
+        def get_dynamic_key(index, base_offset=0):
+            # 基于复杂计算生成动态密钥
+            hash_input = f"dynamic_key_{index + base_offset}_secret_salt".encode()
+            hash_val = hashlib.sha256(hash_input).hexdigest()
+            return int(hash_val[:2], 16)  # 取前两位十六进制作为密钥
+        
+        # 解密URL
+        url_bytes = bytearray()
+        for i, obf_byte in enumerate(url_obfuscated):
+            key = get_dynamic_key(i, 0)
+            decrypted_byte = obf_byte ^ key
+            url_bytes.append(decrypted_byte)
+        
+        url = url_bytes.decode('utf-8', errors='ignore')
+        
+        # 解密密码
+        password_bytes = bytearray()
+        for i, obf_byte in enumerate(password_obfuscated):
+            key = get_dynamic_key(i + len(url_obfuscated), 0)  # 使用相同的偏移基础
+            decrypted_byte = obf_byte ^ key
+            password_bytes.append(decrypted_byte)
+        
+        password = password_bytes.decode('utf-8', errors='ignore')
+        
+        return url, password
         
     def login_and_get_files(self, url=None, password=None):
         """登录并获取文件列表"""
@@ -564,7 +623,20 @@ class LanzouDownloaderGUI:
         self.root.geometry("800x700")
         
         # 初始化下载器
-        self.downloader = LanzouDownloader(headless=True)  # 强制无头模式
+        # 检查是否为打包后的exe（生产环境）
+        if getattr(sys, 'frozen', False):
+            # 生产环境：使用混淆解密
+            default_url, default_password = self._get_obfuscated_credentials()
+        else:
+            # 开发环境：从环境变量读取（不提供默认值，强制用户设置环境变量）
+            url_from_env = os.environ.get('LANZOU_URL')
+            password_from_env = os.environ.get('LANZOU_PASSWORD')
+            if not url_from_env or not password_from_env:
+                raise ValueError("在开发环境中必须设置环境变量 LANZOU_URL 和 LANZOU_PASSWORD")
+            default_url = url_from_env
+            default_password = password_from_env
+        
+        self.downloader = LanzouDownloader(headless=True, default_url=default_url, default_password=default_password)  # 强制无头模式
         self.selected_files = []
         self.download_thread = None
         self.is_downloading = False
