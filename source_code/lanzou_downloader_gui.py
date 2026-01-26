@@ -622,7 +622,7 @@ class LanzouDownloaderGUI:
         self.root.title("蓝奏云漫画下载器")
         self.root.geometry("800x700")
         
-        # 初始化下载器
+        # 初始化下载器 - 使用固定的默认值
         # 检查是否为打包后的exe（生产环境）
         if getattr(sys, 'frozen', False):
             # 生产环境：使用混淆解密
@@ -655,7 +655,6 @@ class LanzouDownloaderGUI:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         
-        # 隐藏URL和密码输入区域 - 使用默认值
         # 获取文件按钮
         self.get_files_btn = ttk.Button(main_frame, text="获取文件列表", command=self.get_files)
         self.get_files_btn.grid(row=0, column=0, columnspan=2, pady=5)
