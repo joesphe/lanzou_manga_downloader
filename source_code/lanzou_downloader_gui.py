@@ -210,7 +210,32 @@ class LanzouDownloader:
             if not files_container:
                 raise Exception("未找到文件容器")
             
-            # 等待文件元素加载 - 使用更稳定的等待方式
+            # 循环点击"显示更多文件"按钮，直到所有文件都加载完毕
+            more_button_selector = 'xpath://div[@id="infomores"]//span[@id="filemore"]'
+            click_count = 0
+            max_clicks = 20  # 设置最大点击次数，防止无限循环
+            
+            while click_count < max_clicks:
+                # 检查是否存在"显示更多文件"按钮
+                more_button = self.driver.latest_tab.ele(more_button_selector, timeout=2)
+                if not more_button:
+                    logger.info("未找到'显示更多文件'按钮，可能所有文件已加载")
+                    break
+                
+                try:
+                    logger.info(f"发现'显示更多文件'按钮，正在进行第 {click_count + 1} 次点击")
+                    more_button.click(by_js=True)
+                    click_count += 1
+                    
+                    # 等待新文件加载
+                    time.sleep(3)
+                except Exception as e:
+                    logger.warning(f"点击'显示更多文件'按钮时出错: {e}，可能所有文件已加载")
+                    break
+            
+            logger.info(f"共点击了 {click_count} 次'显示更多文件'按钮")
+            
+            # 获取所有文件元素
             file_elements = []
             for _ in range(10):  # 最多重试10次
                 file_elements = files_container.eles('xpath:.//div[@id="ready"]')
