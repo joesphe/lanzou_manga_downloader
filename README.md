@@ -28,18 +28,25 @@
 
 ## 安装步骤
 
+### 使用 uv (推荐)
+
 1. 克隆或下载项目到本地：
    ```bash
    git clone https://github.com/your-repo/lanzou_manga_downloader.git
    cd lanzou_manga_downloader
    ```
 
-2. 安装依赖库：
+2. 使用 uv 安装依赖（需要 Python 3.12+）：
    ```bash
-   pip install DrissionPage requests tqdm
+   uv sync
    ```
 
-3. 设置环境变量（开发环境）：
+3. 安装开发依赖：
+   ```bash
+   uv sync --group dev
+   ```
+
+4. 设置环境变量（开发环境）：
    
    **Windows (PowerShell):**
    ```powershell
@@ -59,10 +66,46 @@
    export LANZOU_PASSWORD=your_password
    ```
 
+### 使用 pip
+
+1. 克隆或下载项目到本地：
+   ```bash
+   git clone https://github.com/your-repo/lanzou_manga_downloader.git
+   cd lanzou_manga_downloader
+   ```
+
+2. 安装依赖库：
+   ```bash
+   pip install -r requirements.txt
+   ```
+
 ## 使用方法
 
-### GUI模式
+### 使用 uv 运行 (推荐)
 
+#### GUI模式
+```bash
+uv run python source_code/lanzou_downloader_gui.py
+```
+
+或者使用项目定义的命令：
+```bash
+uv run gui
+```
+
+#### 命令行模式
+```bash
+uv run python source_code/lanzou_downloader_guiless.py
+```
+
+或者使用项目定义的命令：
+```bash
+uv run cli
+```
+
+### 传统方式运行
+
+#### GUI模式
 1. 运行GUI版本：
    ```bash
    python source_code/lanzou_downloader_gui.py
@@ -73,8 +116,7 @@
 4. 设置下载目录
 5. 点击"开始下载"按钮
 
-### 命令行模式
-
+#### 命令行模式
 1. 运行无界面版本：
    ```bash
    python source_code/lanzou_downloader_guiless.py
