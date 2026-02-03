@@ -98,113 +98,15 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Spyder custom settings
-.spyproject
-.spyproject.workspace
-.spyproject.config
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# IDE-specific files
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
-
-# Docker related files
-Dockerfile
-docker-compose.yml
-.dockerignore
-*.dockerfile
-docker/
-
-# Docker volumes and containers
-!docker-compose.yml  # 如果你想保留compose文件
-
-# Log files
-logs/
-*.log
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-
-# Backup files
-*.bak
-*.backup
-backup/
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Coverage reports
-.coverage
-coverage.xml
-htmlcov/
-.tox/
-
-# Environment specific files
-.env
-.env.local
-.env.dev
-.env.prod
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# Output of static site generators
-_site/
-_site_static/
-
-# CI/CD
-.circleci/
-.github/
-.travis.yml
-.gitlab-ci.yml
-.drone.yml
-
-# Local configuration files
-config_local.py
-settings_local.py
-quick_git.txt
-蓝奏云漫画资源链接.txt
-
-# Executable files - exclude all .exe files
+# Production files
+lanzou_downloader_gui_prod.py
 *.exe
 
-# Executable files - exclude all .dll files
-*.dll
+backup/
+
+蓝奏云漫画资源链接.txt
+
+quick_git.txt
+
+source_code_prod/

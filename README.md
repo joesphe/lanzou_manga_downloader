@@ -1,205 +1,169 @@
-# 蓝奏云漫画下载器
+# 蓝奏云漫画下载器 (Lanzou Manga Downloader)
 
-蓝奏云漫画下载器是一个专门用于从蓝奏云网盘批量下载漫画或文件的Python工具，支持图形界面(GUI)和无界面(命令行)两种模式。
+一个专门用于从蓝奏云网盘批量下载漫画或文件的工具。
+
+## 项目结构
+
+本项目采用双模式设计：
+
+### 开发版本 (Development Version)
+- 文件位置：`source_code_dev/lanzou_downloader_gui_dev.py`
+- 特点：
+  - 无自动日志生成
+  - 从环境变量读取配置
+  - 便于调试和开发
+- 需要设置环境变量：
+  - `LANZOU_URL`: 蓝奏云分享链接
+  - `LANZOU_PASSWORD`: 分享密码
+
+### 生产版本 (Production Version)
+- 文件位置：`lanzou_downloader_gui_prod.py`（未公开）
+- 特点：
+  - 无自动日志生成
+  - 使用混淆技术保护链接和密码
+  - 适用于打包分发
+- 已添加到 `.gitignore`，不会被提交到版本控制系统
 
 ## 功能特性
 
-- **双模式运行**：提供图形界面和命令行两种操作模式，满足不同用户需求
-- **批量下载**：支持批量获取和下载蓝奏云文件夹中的所有文件
-- **多线程下载**：使用多线程技术提高下载效率
-- **安全设计**：采用双模式安全系统，在开发环境中使用环境变量，在生产环境中使用混淆技术
-- **进度跟踪**：实时显示下载进度和日志记录
-- **跨平台支持**：基于Python开发，支持Windows、macOS和Linux系统
+- 图形用户界面 (GUI)
+- 自动登录蓝奏云分享链接
+- 批量下载文件
+- 多线程下载支持
+- 下载进度显示
+- 文件名安全处理（移除非法字符）
 
-## 系统要求
+## 环境要求
 
-- Python 3.7 或更高版本
-- Microsoft Edge 浏览器（推荐）
-- 稳定的网络连接
+- Python 3.12+
+- Microsoft Edge 浏览器（用于自动化下载）
 
-## 依赖库
+## 安装依赖
 
-- `DrissionPage`: 用于网页自动化操作
-- `requests`: HTTP请求处理
-- `tqdm`: 进度条显示（仅命令行版）
-- `tkinter`: GUI界面组件（仅GUI版）
-- `concurrent.futures`: 多线程支持
-- `logging`: 日志记录
-
-## 安装步骤
-
-### 使用 uv (推荐)
-
-1. 克隆或下载项目到本地：
-   ```bash
-   git clone https://github.com/your-repo/lanzou_manga_downloader.git
-   cd lanzou_manga_downloader
-   ```
-
-2. 使用 uv 安装依赖（需要 Python 3.12+）：
-   ```bash
-   uv sync
-   ```
-
-3. 安装开发依赖：
-   ```bash
-   uv sync --group dev
-   ```
-
-4. 设置环境变量（开发环境）：
-   
-   **Windows (PowerShell):**
-   ```powershell
-   $env:LANZOU_URL='your_lanzou_folder_url'
-   $env:LANZOU_PASSWORD='your_password'
-   ```
-   
-   **Windows (CMD):**
-   ```cmd
-   set LANZOU_URL=your_lanzou_folder_url
-   set LANZOU_PASSWORD=your_password
-   ```
-   
-   **macOS/Linux (Bash/Zsh):**
-   ```bash
-   export LANZOU_URL=your_lanzou_folder_url
-   export LANZOU_PASSWORD=your_password
-   ```
-
-### 使用 pip
-
-1. 克隆或下载项目到本地：
-   ```bash
-   git clone https://github.com/your-repo/lanzou_manga_downloader.git
-   cd lanzou_manga_downloader
-   ```
-
-2. 安装依赖库：
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## 使用方法
-
-### 使用 uv 运行 (推荐)
-
-#### GUI模式
 ```bash
-uv run python source_code/lanzou_downloader_gui.py
+pip install -r requirements.txt
 ```
 
-或者使用项目定义的命令：
+## 开发版本使用方法
+
+1. 设置环境变量：
 ```bash
-uv run gui
+export LANZOU_URL="你的蓝奏云链接"
+export LANZOU_PASSWORD="你的密码"
 ```
 
-#### 命令行模式
+2. 运行开发版本：
 ```bash
-uv run python source_code/lanzou_downloader_guiless.py
+python source_code_dev/lanzou_downloader_gui_dev.py
 ```
 
-或者使用项目定义的命令：
+## 配置说明
+
+### 开发环境配置
+- 通过环境变量 `LANZOU_URL` 和 `LANZOU_PASSWORD` 配置蓝奏云链接和密码
+- 适用于开发和测试阶段
+
+### 生产环境配置
+- 使用内置的混淆算法保护链接和密码
+- 链接和密码硬编码在混淆数据中
+- 适用于分发给最终用户
+
+## 技术栈
+
+- Python 3.12+
+- Tkinter (GUI)
+- DrissionPage (网页自动化)
+- PyInstaller (打包工具)
+
+## 注意事项
+
+1. 由于使用了浏览器自动化技术，请确保 Microsoft Edge 浏览器已安装
+2. 生产版本使用了代码混淆技术来保护敏感信息
+3. 开发版本需要手动设置环境变量，便于修改和调试
+4. 自动日志功能已被移除，可通过命令行重定向输出到日志文件
+
+## 项目文件说明
+
+- `source_code_dev/`: 存放开发版本源代码
+- `lanzou_downloader_gui_prod.py`: 生产版本源代码（已加入 .gitignore）
+- `package_exe.py`: 打包脚本
+- `requirements.txt`: Python 依赖包列表
+- `.gitignore`: 版本控制忽略规则，已包含生产版本文件
+
+## 日志管理
+
+项目不再自动生成日志文件，如需日志记录，可使用命令行重定向：
+
+### 在Linux/macOS/Bash中：
 ```bash
-uv run cli
+# 将输出重定向到日志文件（缓冲模式）
+python lanzou_downloader_gui_dev.py > lanzou_downloader.log 2>&1 &
+
+# 实时输出重定向（无缓冲模式）- 推荐
+python -u lanzou_downloader_gui_dev.py 2>&1 | tee lanzou_downloader.log &
+
+# 或者后台运行并实时输出
+nohup python -u lanzou_downloader_gui_dev.py | tee lanzou_downloader.log &
 ```
 
-#### feapder版本（新）
-```bash
-# 命令行版本
-uv run feapder --help
-
-# GUI版本
-uv run feapder-gui
-```
-
-### 传统方式运行
-
-#### GUI模式
-1. 运行GUI版本：
-   ```bash
-   python source_code/lanzou_downloader_gui.py
-   ```
-
-2. 点击"获取文件列表"按钮加载文件
-3. 在文件列表中选择需要下载的文件（支持Ctrl多选）
-4. 设置下载目录
-5. 点击"开始下载"按钮
-
-#### 命令行模式
-1. 运行无界面版本：
-   ```bash
-   python source_code/lanzou_downloader_guiless.py
-   ```
-
-2. 程序将自动使用环境变量中配置的URL和密码进行下载
-
-## 输出重定向
-
-您可以将程序的输出重定向到日志文件中，方便后续查看和分析。这对于长时间运行的下载任务特别有用。
-
-### Windows (PowerShell)
+### 在Windows PowerShell中：
 ```powershell
-# 重定向标准输出到文件
-python source_code/lanzou_feapder_gui.py > output.log
+# 将输出重定向到日志文件
+Start-Process -FilePath "python" -ArgumentList "lanzou_downloader_gui_dev.py" -RedirectStandardOutput "lanzou_downloader.log" -RedirectStandardError "lanzou_downloader_err.log"
 
-# 重定向标准输出和错误输出到同一文件
-python source_code/lanzou_feapder_gui.py > output.log 2>&1
+# 或者使用管道重定向（适用于交互式运行）
+python lanzou_downloader_gui_dev.py *> lanzou_downloader.log
 
-# 重定向标准输出和错误输出到不同文件
-python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+# 实时输出重定向（PowerShell 7+）- 推荐
+python -u lanzou_downloader_gui_dev.py 2>&1 | Tee-Object -FilePath "lanzou_downloader.log"
+
+# 后台运行（不阻塞当前终端）
+Start-Process -FilePath "python" -ArgumentList "lanzou_downloader_gui_dev.py" -WindowStyle Hidden
 ```
 
-### Windows (CMD)
+### Windows命令提示符(cmd)：
 ```cmd
-# 重定向标准输出到文件
-python source_code/lanzou_feapder_gui.py > output.log
+# 将输出重定向到日志文件
+python lanzou_downloader_gui_dev.py > lanzou_downloader.log 2>&1
 
-# 重定向标准输出和错误输出到同一文件
-python source_code/lanzou_feapder_gui.py > output.log 2>&1
-
-# 重定向标准输出和错误输出到不同文件
-python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+# 实时输出重定向 - 推荐
+python -u lanzou_downloader_gui_dev.py > lanzou_downloader.log 2>&1 &
 ```
 
-### macOS/Linux (Bash/Zsh)
+### 实时日志监控
+如果需要实时监控日志文件，可以使用以下命令：
+
+#### Linux/macOS:
 ```bash
-# 重定向标准输出到文件
-python source_code/lanzou_feapder_gui.py > output.log
-
-# 重定向标准输出和错误输出到同一文件
-python source_code/lanzou_feapder_gui.py > output.log 2>&1
-
-# 重定向标准输出和错误输出到不同文件
-python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+# 实时监控日志文件变化
+tail -f lanzou_downloader.log
 ```
 
-## 安全特性
+#### Windows PowerShell:
+```powershell
+# 实时监控日志文件变化
+Get-Content lanzou_downloader.log -Wait
+```
 
-本项目采用了双模式安全系统：
+## EXE文件使用说明
 
-- **开发环境模式**：强制使用环境变量存储敏感信息，避免硬编码在源代码中
-- **生产环境模式**：当代码打包成exe时，使用深度混淆技术保护敏感信息
+项目已提供打包好的EXE文件，位于 `dist/lanzou_downloader_gui.exe`，可以直接运行而无需安装Python环境。
 
-## 配置选项
+### 运行EXE文件
 
-- `LANZOU_URL`: 蓝奏云分享链接地址
-- `LANZOU_PASSWORD`: 蓝奏云分享密码
-- `max_workers`: 最大并发下载数（默认为3）
-- `headless`: 是否启用无头浏览器模式（默认为True）
+1. 双击 `lanzou_downloader_gui.exe` 文件即可启动应用
+2. 或在命令行中运行：
+```cmd
+dist\lanzou_downloader_gui.exe
+```
 
-## 日志记录
+### EXE文件特点
 
-程序会自动生成日志文件保存在`logs`目录下，文件名包含时间戳，便于问题排查和下载历史追踪。
+- 独立可执行文件，无需安装Python环境
+- 内置混淆保护的链接和密码
+- 包含所有必要依赖项
+- 文件大小约24MB
 
-新版本（feapder）提供了更完善的日志系统，支持通过命令行参数控制日志级别和输出格式。
+## 许可证
 
-## 故障排除
-
-1. **浏览器问题**：确保已安装Microsoft Edge浏览器（版本至少要大于100）
-2. **环境变量错误**：检查LANZOU_URL和LANZOU_PASSWORD是否正确设置
-3. **网络连接问题**：确认网络连接正常且蓝奏云链接有效
-
-
-
-## 作者
-曜曜
+本项目仅供学习和研究使用，请遵守相关法律法规，合理使用网络资源。
