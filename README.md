@@ -103,6 +103,15 @@ uv run python source_code/lanzou_downloader_guiless.py
 uv run cli
 ```
 
+#### feapder版本（新）
+```bash
+# 命令行版本
+uv run feapder --help
+
+# GUI版本
+uv run feapder-gui
+```
+
 ### 传统方式运行
 
 #### GUI模式
@@ -124,6 +133,46 @@ uv run cli
 
 2. 程序将自动使用环境变量中配置的URL和密码进行下载
 
+## 输出重定向
+
+您可以将程序的输出重定向到日志文件中，方便后续查看和分析。这对于长时间运行的下载任务特别有用。
+
+### Windows (PowerShell)
+```powershell
+# 重定向标准输出到文件
+python source_code/lanzou_feapder_gui.py > output.log
+
+# 重定向标准输出和错误输出到同一文件
+python source_code/lanzou_feapder_gui.py > output.log 2>&1
+
+# 重定向标准输出和错误输出到不同文件
+python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+```
+
+### Windows (CMD)
+```cmd
+# 重定向标准输出到文件
+python source_code/lanzou_feapder_gui.py > output.log
+
+# 重定向标准输出和错误输出到同一文件
+python source_code/lanzou_feapder_gui.py > output.log 2>&1
+
+# 重定向标准输出和错误输出到不同文件
+python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+```
+
+### macOS/Linux (Bash/Zsh)
+```bash
+# 重定向标准输出到文件
+python source_code/lanzou_feapder_gui.py > output.log
+
+# 重定向标准输出和错误输出到同一文件
+python source_code/lanzou_feapder_gui.py > output.log 2>&1
+
+# 重定向标准输出和错误输出到不同文件
+python source_code/lanzou_feapder_gui.py > output.log 2> error.log
+```
+
 ## 安全特性
 
 本项目采用了双模式安全系统：
@@ -141,6 +190,8 @@ uv run cli
 ## 日志记录
 
 程序会自动生成日志文件保存在`logs`目录下，文件名包含时间戳，便于问题排查和下载历史追踪。
+
+新版本（feapder）提供了更完善的日志系统，支持通过命令行参数控制日志级别和输出格式。
 
 ## 故障排除
 

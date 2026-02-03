@@ -62,6 +62,8 @@ dev = [
 [project.scripts]
 gui = "source_code.lanzou_downloader_gui:main"
 cli = "source_code.lanzou_downloader_guiless:main"
+feapder = "source_code.lanzou_feapder_spider:main"
+feapder-gui = "source_code.lanzou_feapder_gui:main"
 
 [tool.setuptools]
 packages = ["source_code"]
