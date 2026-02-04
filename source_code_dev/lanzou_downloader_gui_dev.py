@@ -102,13 +102,12 @@ class LanzouDownloader:
             print(f"正在访问链接: {url}")
             # 访问链接 - 使用正确的DrissionPage API
             self.driver.latest_tab.get(url)
-            time.sleep(3)
+            time.sleep(1)  # 减少等待时间
             
             # 输入密码
             print("正在输入密码")
             # 等待密码输入框出现
-            self.driver.latest_tab.wait.ele_displayed('xpath://input[@id="pwd"]', timeout=10)
-            password_input = self.driver.latest_tab.ele('xpath://input[@id="pwd"]')
+            password_input = self.driver.latest_tab.ele('xpath://input[@id="pwd"]', timeout=10)
             if password_input:
                 password_input.clear(by_js=True)
                 password_input.input(password)
@@ -118,8 +117,7 @@ class LanzouDownloader:
             # 点击提交按钮
             print("正在提交密码")
             # 等待提交按钮出现 - 实际上是input元素，不是button
-            self.driver.latest_tab.wait.ele_displayed('xpath://input[@id="sub"]', timeout=10)
-            submit_button = self.driver.latest_tab.ele('xpath://input[@id="sub"]')
+            submit_button = self.driver.latest_tab.ele('xpath://input[@id="sub"]', timeout=10)
             if submit_button:
                 submit_button.click(by_js=True)
             else:
@@ -127,76 +125,80 @@ class LanzouDownloader:
             
             # 等待页面加载完成
             print("等待页面加载完成")
-            time.sleep(5)
+            time.sleep(3)  # 减少等待时间
             
             # 获取文件列表
             # 等待文件容器出现
-            self.driver.latest_tab.wait.ele_displayed('xpath://div[@id="infos"]', timeout=10)
-            files_container = self.driver.latest_tab.ele('xpath://div[@id="infos"]')
+            files_container = self.driver.latest_tab.ele('xpath://div[@id="infos"]', timeout=10)
             if not files_container:
                 raise Exception("未找到文件容器")
             
+            # 记录初始文件数量
+            prev_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
+            print(f"初始文件数量: {prev_file_count}")
+            
             # 循环点击"显示更多文件"按钮，直到所有文件都加载完毕
-            more_button_selector = 'xpath://div[@id="infomores"]//span[@id="filemore"]'
             click_count = 0
-            max_clicks = 20  # 设置最大点击次数，防止无限循环
+            max_clicks = 100  # 设置足够大的最大点击次数
             
             while click_count < max_clicks:
-                # 检查是否存在"显示更多文件"按钮
-                more_button = self.driver.latest_tab.ele(more_button_selector, timeout=2)
+                # 直接查找按钮，不等待
+                more_button = self.driver.latest_tab.ele('xpath://div[@id="infomores"]//span[@id="filemore"]', timeout=1)
                 if not more_button:
                     print("未找到'显示更多文件'按钮，可能所有文件已加载")
                     break
                 
                 try:
-                    print(f"发现'显示更多文件'按钮，正在进行第 {click_count + 1} 次点击")
-                    more_button.click(by_js=True)
+                    print(f"点击'显示更多文件'按钮第 {click_count + 1} 次")
+                    # 使用JavaScript直接点击，避免元素交互问题
+                    self.driver.latest_tab.run_js("document.getElementById('filemore').click();")
                     click_count += 1
                     
-                    # 等待新文件加载
-                    time.sleep(3)
+                    # 极短的等待时间
+                    time.sleep(0.8)
+                    
+                    # 检查文件数量是否有变化
+                    current_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
+                    if current_file_count > prev_file_count:
+                        print(f"文件数量从 {prev_file_count} 增加到 {current_file_count}")
+                        prev_file_count = current_file_count
+                    else:
+                        # 再等等看是否有延迟加载
+                        time.sleep(1.5)
+                        current_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
+                        if current_file_count == prev_file_count:
+                            print("文件数量没有变化，可能所有文件已加载")
+                            break
+                        else:
+                            print(f"文件数量从 {prev_file_count} 增加到 {current_file_count}")
+                            prev_file_count = current_file_count
+                    
                 except Exception as e:
-                    print(f"点击'显示更多文件'按钮时出错: {e}，可能所有文件已加载")
+                    print(f"点击'显示更多文件'按钮时出错: {e}")
                     break
             
             print(f"共点击了 {click_count} 次'显示更多文件'按钮")
             
-            # 获取所有文件元素
-            file_elements = []
-            for _ in range(10):  # 最多重试10次
-                file_elements = files_container.eles('xpath:.//div[@id="ready"]')
-                if file_elements:
-                    break
-                time.sleep(1)
-            
+            # 快速获取所有文件元素
+            file_elements = files_container.eles('xpath:.//div[@id="ready"]')
             print(f"找到 {len(file_elements)} 个文件:")
             
             for i, file_element in enumerate(file_elements, 1):
                 try:
-                    # 等待元素完全加载后再操作
-                    # 获取文件名和下载链接
-                    # 等待名称元素出现
-                    self.driver.latest_tab.wait.ele_displayed('xpath:.//div[@id="name"]', timeout=5)
-                    name_element = file_element.ele('xpath:.//div[@id="name"]')
+                    # 快速获取文件信息
+                    name_element = file_element.ele('xpath:.//div[@id="name"]//a', timeout=1)
                     if name_element:
-                        link_element = name_element.ele('tag:a', timeout=5)
-                        
-                        if link_element:
-                            file_name = link_element.text
-                            file_link = link_element.attr('href')
-                        else:
-                            raise Exception("未找到文件链接")
+                        file_name = name_element.text
+                        file_link = name_element.attr('href')
                     else:
-                        raise Exception("未找到文件名元素")
+                        continue  # 跳过无法解析的文件
                     
                     # 获取文件大小
-                    self.driver.latest_tab.wait.ele_displayed('xpath:.//div[@id="size"]', timeout=5)
-                    size_element = file_element.ele('xpath:.//div[@id="size"]', timeout=5)
+                    size_element = file_element.ele('xpath:.//div[@id="size"]', timeout=1)
                     file_size = size_element.text if size_element else "未知大小"
                     
                     # 获取文件时间
-                    self.driver.latest_tab.wait.ele_displayed('xpath:.//div[@id="time"]', timeout=5)
-                    time_element = file_element.ele('xpath:.//div[@id="time"]', timeout=5)
+                    time_element = file_element.ele('xpath:.//div[@id="time"]', timeout=1)
                     file_time = time_element.text if time_element else "未知时间"
                     
                     file_info = {
@@ -208,6 +210,9 @@ class LanzouDownloader:
                     }
                     
                     self.files.append(file_info)
+                    
+                    if i <= 50:  # 只打印前50个文件名以避免过多输出
+                        print(f"  {i:3d}. {file_name} ({file_size})")
                     
                 except Exception as e:
                     error_msg = f"解析第 {i} 个文件时出错: {e}"

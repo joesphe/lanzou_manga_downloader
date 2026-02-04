@@ -110,3 +110,5 @@ backup/
 quick_git.txt
 
 source_code_prod/
+
+test/
