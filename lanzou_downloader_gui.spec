@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['d:\\lanzou_manga_downloader\\source_code_prod\\lanzou_downloader_gui_prod.py'],
+    ['d:\\lanzou_manga_downloader\\source_code_prod\\lanzoub_downloader_gui.py'],
     pathex=[],
     binaries=[],
     datas=[

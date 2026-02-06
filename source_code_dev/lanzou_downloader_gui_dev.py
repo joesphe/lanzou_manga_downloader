@@ -404,6 +404,168 @@ class LanzouDownloader:
         
         return False
     
+    def get_real_download_url(self, file_link):
+        """
+        使用DrissionPage获取真实的下载链接
+        """
+        try:
+            print(f"正在获取文件的真实下载链接: {file_link}")
+            
+            # 访问文件详情页面
+            self.driver.latest_tab.get(file_link)
+            time.sleep(5)  # 等待页面完全加载
+            
+            # 查找真实的下载链接
+            # 尝试多种可能的选择器来获取真实下载链接
+            selectors = [
+                'xpath://a[contains(@href, "developer-oss") and contains(@href, "toolsdown")]',
+                'xpath://a[contains(@href, "lanzoug.com") and contains(@href, "file")]',
+                'xpath://a[contains(@href, "lanzou")]',
+                'xpath://a[contains(@onclick, "down") or contains(@onclick, "download")]',
+                'css:a[href*="developer-oss"]',
+                'css:a[href*="lanzoug.com"]'
+            ]
+            
+            for selector in selectors:
+                try:
+                    elements = self.driver.latest_tab.eles(selector, timeout=3)
+                    if elements:
+                        for element in elements:
+                            href = element.attr('href')
+                            if href and ('developer-oss' in href or 'lanzoug.com' in href or 'downserver' in href):
+                                print(f"找到真实下载链接: {href}")
+                                return href
+                except:
+                    continue
+            
+            # 如果上面的方法都没有找到，尝试获取页面源码，从中提取链接
+            page_source = self.driver.latest_tab.html
+            import re
+            
+            # 查找可能包含真实下载链接的模式
+            patterns = [
+                r'https?://[^\s"<>\']*(?:developer-oss|lanzoug\.com|downserver)[^\s"<>\']*',
+                r'https?://[^\s"<>\']*toolsdown[^\s"<>\']*',
+                r'https?://[^\s"<>\']*\.lanzou[^\s"<>\']*'
+            ]
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, page_source)
+                if matches:
+                    # 返回第一个看起来像是真实下载链接的URL
+                    for match in matches:
+                        if 'developer-oss' in match or 'toolsdown' in match or 'lanzoug.com' in match:
+                            print(f"从页面源码中找到真实下载链接: {match}")
+                            return match
+            
+            print("警告: 未能找到真实下载链接")
+            return None
+            
+        except Exception as e:
+            print(f"获取真实下载链接时出错: {e}")
+            return None
+
+    def download_with_requests(self, url, file_path, file_name):
+        """
+        使用requests下载文件并显示进度
+        """
+        try:
+            # 检查文件是否已经存在
+            if os.path.exists(file_path):
+                if self.progress_callback:
+                    self.progress_callback(file_name, os.path.getsize(file_path), file_path, "跳过(已存在)", 100)
+                return True
+            
+            print(f"开始使用requests下载: {file_name}")
+            
+            # 设置请求头，模拟浏览器
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
+            
+            # 发起请求，流式下载
+            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            # 获取文件总大小
+            total_size = int(response.headers.get('content-length', 0))
+            
+            # 创建目录
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            # 开始下载
+            downloaded_size = 0
+            with open(file_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        file.write(chunk)
+                        downloaded_size += len(chunk)
+                        
+                        # 更新进度
+                        if total_size > 0:
+                            progress = int((downloaded_size / total_size) * 100)
+                            if self.progress_callback:
+                                self.progress_callback(file_name, downloaded_size, file_path, "下载中...", progress)
+            
+            # 下载完成
+            if self.progress_callback:
+                self.progress_callback(file_name, downloaded_size, file_path, "下载完成", 100)
+                
+            print(f"文件下载完成: {file_name}")
+            return True
+            
+        except Exception as e:
+            print(f"使用requests下载文件 {file_name} 时出错: {e}")
+            # 如果下载失败，删除可能的部分下载文件
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+            return False
+
+    def download_single_file_optimized(self, file_info, download_dir="downloads"):
+        """
+        优化的下载方法：先获取真实下载链接，再用requests下载
+        """
+        try:
+            print(f"开始优化下载流程: {file_info['name']}")
+            
+            # 清理文件名
+            clean_filename = self.sanitize_filename(file_info['name'])
+            file_path = os.path.join(download_dir, clean_filename)
+            
+            # 首先尝试获取真实下载链接
+            real_url = self.get_real_download_url(file_info['link'])
+            
+            if not real_url:
+                print(f"未能获取到 {file_info['name']} 的真实下载链接，回退到原方法")
+                # 如果获取不到真实链接，则回退到原始的浏览器下载方法
+                return self.download_single_file_legacy(file_info, download_dir)
+            
+            # 使用requests下载真实链接
+            success = self.download_with_requests(real_url, file_path, clean_filename)
+            
+            return success
+            
+        except Exception as e:
+            print(f"优化下载文件 {file_info['name']} 时出错: {e}")
+            return False
+
+    def download_single_file_legacy(self, file_info, download_dir="downloads", max_retries=3):
+        """
+        原始的下载方法（保留作为备选方案）
+        """
+        print(f"使用原始方法下载: {file_info['name']}")
+        # 这里保留原始的下载逻辑
+        # 为了简洁，这里只显示主要逻辑，实际实现应复制原始download_single_file方法
+        return self.download_single_file(file_info, download_dir, max_retries)
+
     def download_multiple_files(self, selected_indices, download_dir="downloads", max_workers=None):
         """批量下载文件"""
         selected_files = [f for f in self.files if f['index'] in selected_indices]
@@ -416,14 +578,19 @@ class LanzouDownloader:
         
         # 单线程顺序下载
         results = []
-        for file_info in selected_files:
-            try:
-                result = self.download_single_file(file_info, download_dir)
-                results.append((file_info['name'], result))
-                print(f"文件 {file_info['name']} 下载 {'成功' if result else '失败'}")
-            except Exception as e:
-                print(f"下载文件 {file_info['name']} 时发生异常: {e}")
-                results.append((file_info['name'], False))
+        total_files = len(selected_files)
+        
+        for i, file_info in enumerate(selected_files):
+            print(f"正在下载第 {i+1}/{total_files} 个文件: {file_info['name']}")
+            
+            # 使用优化的下载方法
+            success = self.download_single_file_optimized(file_info, download_dir)
+            results.append((file_info['name'], success))
+            
+            # 更新全局进度
+            if self.global_progress_callback:
+                progress = int(((i + 1) / total_files) * 100)
+                self.global_progress_callback(f"正在下载: {file_info['name']}", progress)
         
         return results
 
