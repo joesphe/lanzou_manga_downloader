@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import base64
 import hashlib
+from urllib.parse import urlparse, parse_qs, urljoin
 
 
 class LanzouDownloader:
@@ -97,131 +98,211 @@ class LanzouDownloader:
         # 如果没有传入url和password，则使用默认值
         url = url or self.default_url
         password = password or self.default_password
-        
+        self.files = []
+
+        def _extract_context(page_html, share_url):
+            parsed = urlparse(share_url)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            q = parse_qs(parsed.query)
+            fid = q.get("file", [None])[0]
+
+            if not fid:
+                m = re.search(r"/filemoreajax\.php\?file=(\d+)", page_html)
+                fid = m.group(1) if m else None
+            if not fid:
+                m = re.search(r"'fid'\s*:\s*(\d+)", page_html)
+                fid = m.group(1) if m else None
+
+            uid_match = re.search(r"'uid'\s*:\s*'?(\d+)'?", page_html)
+            uid = uid_match.group(1) if uid_match else None
+
+            t_name_match = re.search(r"'t'\s*:\s*([A-Za-z_][A-Za-z0-9_]*)", page_html)
+            k_name_match = re.search(r"'k'\s*:\s*([A-Za-z_][A-Za-z0-9_]*)", page_html)
+
+            def _pick_var_value(var_name):
+                if not var_name:
+                    return None
+                var_match = re.search(
+                    rf"var\s+{re.escape(var_name)}\s*=\s*['\"]([^'\"]+)['\"]",
+                    page_html
+                )
+                return var_match.group(1) if var_match else None
+
+            t_val = _pick_var_value(t_name_match.group(1) if t_name_match else None)
+            k_val = _pick_var_value(k_name_match.group(1) if k_name_match else None)
+
+            if not t_val:
+                m = re.search(r"'t'\s*:\s*'([^']+)'", page_html)
+                t_val = m.group(1) if m else None
+            if not k_val:
+                m = re.search(r"'k'\s*:\s*'([^']+)'", page_html)
+                k_val = m.group(1) if m else None
+
+            missing = [k for k, v in {"fid": fid, "uid": uid, "t": t_val, "k": k_val}.items() if not v]
+            if missing:
+                raise Exception(f"页面参数提取失败，缺少: {', '.join(missing)}")
+
+            return {"origin": origin, "fid": fid, "uid": uid, "t": t_val, "k": k_val}
+
         try:
             print(f"正在访问链接: {url}")
-            # 访问链接 - 使用正确的DrissionPage API
-            self.driver.latest_tab.get(url)
-            time.sleep(1)  # 减少等待时间
-            
-            # 输入密码
-            print("正在输入密码")
-            # 等待密码输入框出现
-            password_input = self.driver.latest_tab.ele('xpath://input[@id="pwd"]', timeout=10)
-            if password_input:
-                password_input.clear(by_js=True)
-                password_input.input(password)
-            else:
-                raise Exception("未找到密码输入框")
-            
-            # 点击提交按钮
-            print("正在提交密码")
-            # 等待提交按钮出现 - 实际上是input元素，不是button
-            submit_button = self.driver.latest_tab.ele('xpath://input[@id="sub"]', timeout=10)
-            if submit_button:
-                submit_button.click(by_js=True)
-            else:
-                raise Exception("未找到提交按钮")
-            
-            # 等待页面加载完成
-            print("等待页面加载完成")
-            time.sleep(3)  # 减少等待时间
-            
-            # 获取文件列表
-            # 等待文件容器出现
-            files_container = self.driver.latest_tab.ele('xpath://div[@id="infos"]', timeout=10)
-            if not files_container:
-                raise Exception("未找到文件容器")
-            
-            # 记录初始文件数量
-            prev_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
-            print(f"初始文件数量: {prev_file_count}")
-            
-            # 循环点击"显示更多文件"按钮，直到所有文件都加载完毕
-            click_count = 0
-            max_clicks = 100  # 设置足够大的最大点击次数
-            
-            while click_count < max_clicks:
-                # 直接查找按钮，不等待
-                more_button = self.driver.latest_tab.ele('xpath://div[@id="infomores"]//span[@id="filemore"]', timeout=1)
-                if not more_button:
-                    print("未找到'显示更多文件'按钮，可能所有文件已加载")
+            session = requests.Session()
+            session.trust_env = False
+            common_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9",
+            }
+
+            resp = session.get(url, headers=common_headers, timeout=20)
+            resp.raise_for_status()
+            page_html = resp.text
+
+            ctx = _extract_context(page_html, url)
+            ajax_url = f"{ctx['origin']}/filemoreajax.php?file={ctx['fid']}"
+            print(f"参数提取成功 fid={ctx['fid']} uid={ctx['uid']}")
+
+            def _new_session():
+                s = requests.Session()
+                s.trust_env = False
+                return s
+
+            def _refresh_context(force_new_session=False):
+                nonlocal session, ctx
+                if force_new_session:
+                    session = _new_session()
+                refresh_resp = session.get(url, headers=common_headers, timeout=20)
+                refresh_resp.raise_for_status()
+                ctx = _extract_context(refresh_resp.text, url)
+
+            def _post_page(pg, rep=0, ls=1, up=1):
+                payload = {
+                    "lx": 2,
+                    "fid": ctx["fid"],
+                    "uid": ctx["uid"],
+                    "pg": pg,
+                    "rep": rep,
+                    "t": ctx["t"],
+                    "k": ctx["k"],
+                    "up": up,
+                    "ls": ls,
+                    "pwd": password,
+                }
+                ajax_headers = {
+                    "User-Agent": common_headers["User-Agent"],
+                    "Accept": "application/json, text/javascript, */*",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": url,
+                    "Origin": ctx["origin"],
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                }
+                page_resp = session.post(ajax_url, data=payload, headers=ajax_headers, timeout=20)
+                page_resp.raise_for_status()
+                data = page_resp.json()
+                return data, str(data.get("zt", ""))
+
+            def _fetch_page_with_retry(target_page, max_attempts=24, allow_warmup=True):
+                last_data = None
+                last_zt = ""
+                payload_variants = [(0, 1, 1), (0, 0, 1), (0, 1, 0)]
+
+                for attempt in range(1, max_attempts + 1):
+                    if attempt == 1 or attempt % 3 == 0:
+                        try:
+                            _refresh_context(force_new_session=(attempt % 6 == 0))
+                        except Exception:
+                            pass
+
+                    for rep, ls, up in payload_variants:
+                        try:
+                            data, zt = _post_page(target_page, rep=rep, ls=ls, up=up)
+                            last_data, last_zt = data, zt
+                        except Exception:
+                            data, zt = None, ""
+                            last_data, last_zt = None, ""
+
+                        if zt == "1":
+                            return data, zt
+                        if zt == "3":
+                            raise Exception(f"密码错误: {data.get('info', 'unknown') if data else 'unknown'}")
+
+                    if allow_warmup and target_page > 1 and attempt % 5 == 0:
+                        try:
+                            _post_page(target_page - 1)
+                        except Exception:
+                            pass
+                    time.sleep(min(2.5, 0.25 * attempt))
+
+                return last_data, last_zt
+
+            index = 1
+            page = 1
+            max_pages = 500
+            seen_ids = set()
+
+            while page <= max_pages:
+                data, zt = _fetch_page_with_retry(page, max_attempts=24, allow_warmup=True)
+
+                if zt != "1":
+                    if page > 1:
+                        try:
+                            _refresh_context(force_new_session=True)
+                            replay_ok = True
+                            for back_page in range(1, page):
+                                back_data, back_zt = _fetch_page_with_retry(back_page, max_attempts=8, allow_warmup=False)
+                                if back_zt != "1":
+                                    replay_ok = False
+                                    break
+                                if not (back_data.get("text") or []):
+                                    break
+                            if replay_ok:
+                                data, zt = _fetch_page_with_retry(page, max_attempts=24, allow_warmup=True)
+                        except Exception:
+                            pass
+
+                if zt != "1":
+                    raise Exception(f"第 {page} 页请求失败，zt={zt}, info={data.get('info', '') if data else ''}")
+
+                rows = data.get("text") or []
+                if not rows:
                     break
-                
-                try:
-                    print(f"点击'显示更多文件'按钮第 {click_count + 1} 次")
-                    # 使用JavaScript直接点击，避免元素交互问题
-                    self.driver.latest_tab.run_js("document.getElementById('filemore').click();")
-                    click_count += 1
-                    
-                    # 极短的等待时间
-                    time.sleep(0.8)
-                    
-                    # 检查文件数量是否有变化
-                    current_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
-                    if current_file_count > prev_file_count:
-                        print(f"文件数量从 {prev_file_count} 增加到 {current_file_count}")
-                        prev_file_count = current_file_count
+
+                for row in rows:
+                    file_id = str(row.get("id", "")).strip()
+                    if not file_id or file_id == "-1":
+                        continue
+                    if file_id in seen_ids:
+                        continue
+                    seen_ids.add(file_id)
+
+                    if str(row.get("t", "0")) == "1" and file_id.startswith("http"):
+                        file_link = file_id
                     else:
-                        # 再等等看是否有延迟加载
-                        time.sleep(1.5)
-                        current_file_count = len(files_container.eles('xpath:.//div[@id="ready"]'))
-                        if current_file_count == prev_file_count:
-                            print("文件数量没有变化，可能所有文件已加载")
-                            break
-                        else:
-                            print(f"文件数量从 {prev_file_count} 增加到 {current_file_count}")
-                            prev_file_count = current_file_count
-                    
-                except Exception as e:
-                    print(f"点击'显示更多文件'按钮时出错: {e}")
-                    break
-            
-            print(f"共点击了 {click_count} 次'显示更多文件'按钮")
-            
-            # 快速获取所有文件元素
-            file_elements = files_container.eles('xpath:.//div[@id="ready"]')
-            print(f"找到 {len(file_elements)} 个文件:")
-            
-            for i, file_element in enumerate(file_elements, 1):
-                try:
-                    # 快速获取文件信息
-                    name_element = file_element.ele('xpath:.//div[@id="name"]//a', timeout=1)
-                    if name_element:
-                        file_name = name_element.text
-                        file_link = name_element.attr('href')
-                    else:
-                        continue  # 跳过无法解析的文件
-                    
-                    # 获取文件大小
-                    size_element = file_element.ele('xpath:.//div[@id="size"]', timeout=1)
-                    file_size = size_element.text if size_element else "未知大小"
-                    
-                    # 获取文件时间
-                    time_element = file_element.ele('xpath:.//div[@id="time"]', timeout=1)
-                    file_time = time_element.text if time_element else "未知时间"
-                    
+                        file_link = urljoin(f"{ctx['origin']}/", file_id.lstrip("/"))
+
                     file_info = {
-                        "index": i,
-                        "name": file_name,
+                        "index": index,
+                        "name": row.get("name_all", ""),
                         "link": file_link,
-                        "size": file_size,
-                        "time": file_time
+                        "size": row.get("size", "未知大小"),
+                        "time": row.get("time", "未知时间"),
                     }
-                    
                     self.files.append(file_info)
-                    
-                    if i <= 50:  # 只打印前50个文件名以避免过多输出
-                        print(f"  {i:3d}. {file_name} ({file_size})")
-                    
-                except Exception as e:
-                    error_msg = f"解析第 {i} 个文件时出错: {e}"
-                    print(error_msg)
-                    
+                    if index <= 50:
+                        print(f"  {index:3d}. {file_info['name']} ({file_info['size']})")
+                    index += 1
+
+                if len(rows) < 50:
+                    break
+                page += 1
+
+            print(f"直连获取完成，共 {len(self.files)} 个文件")
+
         except Exception as e:
             error_msg = f"获取文件列表时出错: {e}"
             print(error_msg)
-            raise  # 重新抛出异常以便上层处理
+            raise
             
     def sanitize_filename(self, filename):
         """清理文件名，移除非法字符"""

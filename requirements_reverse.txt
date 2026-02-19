@@ -1,0 +1,7 @@
+# Dependencies for reverse engineering workflow (t/k analysis)
+# Install: pip install -r requirements_reverse.txt
+requests==2.31.0
+DrissionPage==4.1.1.2
+selenium==4.27.0
+webdriver-manager==4.0.2
+flask==3.1.2

@@ -36,7 +36,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='lanzou_downloader_gui',
+    name='lanzou_downloader_gui_v5_0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -47,6 +47,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
+    version='d:\\lanzou_manga_downloader\\package_build\\pyinstaller_version_v5_0.txt',
     codesign_identity=None,
     entitlements_file=None,
 )

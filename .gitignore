@@ -113,3 +113,6 @@ source_code_prod/
 
 test/
 build_private_repository/
+js-reverse-automation/
+test_txt/
+AGENTS.md
