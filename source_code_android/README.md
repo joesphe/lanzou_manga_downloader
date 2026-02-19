@@ -22,6 +22,25 @@
 2. 等待 Gradle 同步并下载依赖。
 3. 连接 Android 12+ 真机，点击 Run。
 
+## WSL (Ubuntu 24.04) 构建
+1. 进入目录：`cd /mnt/d/lanzou_manga_downloader/source_code_android`
+2. 若仓库尚无 Gradle Wrapper，先生成：
+   - `sudo apt install -y gradle`
+   - `gradle wrapper --gradle-version 8.7`
+3. 构建 debug APK：`./gradlew --no-daemon :app:assembleDebug`
+4. 构建 release APK（未签名或已签名，取决于是否配置 `keystore.properties`）：
+   - `./gradlew --no-daemon :app:assembleRelease`
+
+## Release 签名配置
+1. 生成签名文件（示例）：
+   - `keytool -genkeypair -v -keystore ~/keys/lanzou-release.jks -alias release -keyalg RSA -keysize 2048 -validity 10000`
+2. 在 `source_code_android` 下创建 `keystore.properties`（可参考 `keystore.properties.example`）：
+   - `storeFile=/home/<user>/keys/lanzou-release.jks`
+   - `storePassword=***`
+   - `keyAlias=release`
+   - `keyPassword=***`
+3. 执行 `./gradlew --no-daemon :app:assembleRelease` 生成已签名 release APK。
+
 ## 说明
 - 当前下载目录为：`/Android/data/com.lanzou.downloader/files/downloads`。
-- 若目标站点调整下载页脚本，优先更新 `resolveRealDownloadUrl()` 解析规则。
+- 若目标站点调整下载页脚本，优先更新 `resolveRealDownloadUrls()` 解析规则。

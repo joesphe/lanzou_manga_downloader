@@ -3,5 +3,10 @@
 .gradle/
 local.properties
 
+# Signing
+keystore.properties
+*.jks
+*.keystore
+
 # Build outputs
 **/build/

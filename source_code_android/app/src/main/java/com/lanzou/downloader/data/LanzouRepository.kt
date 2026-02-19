@@ -15,9 +15,17 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URI
 import java.util.concurrent.TimeUnit
+import java.net.CookieManager
+import java.net.CookiePolicy
+import okhttp3.JavaNetCookieJar
 
 class LanzouRepository {
+    private val cookieManager = CookieManager().apply {
+        setCookiePolicy(CookiePolicy.ACCEPT_ALL)
+    }
+
     private val client = OkHttpClient.Builder()
+        .cookieJar(JavaNetCookieJar(cookieManager))
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
