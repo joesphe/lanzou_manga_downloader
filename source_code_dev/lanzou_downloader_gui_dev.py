@@ -4,7 +4,6 @@ import sys
 import requests
 import threading
 import re
-import threading
 from DrissionPage import Chromium, ChromiumOptions, SessionOptions
 import json
 import tkinter as tk
@@ -12,6 +11,62 @@ from tkinter import ttk, messagebox, filedialog
 import base64
 import hashlib
 from urllib.parse import urlparse, parse_qs, urljoin
+
+
+class _PrefetchManager:
+    """后台预取真实下载链接。"""
+
+    def __init__(self, downloader, max_queue_size=50):
+        from queue import Queue
+        self.downloader = downloader
+        self.q = Queue(maxsize=max_queue_size)
+        self.cache = {}  # file_index -> real_url
+        self._stop = threading.Event()
+        self._worker = None
+
+    def start(self):
+        if self._worker and self._worker.is_alive():
+            return
+        self._stop.clear()
+        self._worker = threading.Thread(target=self._run, daemon=True)
+        self._worker.start()
+
+    def stop(self):
+        self._stop.set()
+
+    def enqueue(self, file_info):
+        key = file_info.get("index")
+        if key is None or key in self.cache:
+            return
+        try:
+            self.q.put_nowait(file_info)
+        except Exception:
+            return
+
+    def get_cached(self, file_index):
+        return self.cache.get(file_index)
+
+    def _run(self):
+        from queue import Empty
+        while not self._stop.is_set():
+            try:
+                f = self.q.get(timeout=0.2)
+            except Empty:
+                continue
+            try:
+                key = f.get("index")
+                if key is None or key in self.cache:
+                    continue
+                real = self.downloader.get_real_download_url(f.get("link"))
+                if real:
+                    self.cache[key] = real
+            except Exception:
+                pass
+            finally:
+                try:
+                    self.q.task_done()
+                except Exception:
+                    pass
 
 
 class LanzouDownloader:
@@ -40,6 +95,9 @@ class LanzouDownloader:
         self.driver = None
         self.progress_callback = None  # 用于GUI回调的进度更新函数
         self.global_progress_callback = None  # 用于全局进度更新的回调函数
+        self.browser_lock = threading.RLock()
+        self.http = requests.Session()
+        self.http.trust_env = False
         
     def set_progress_callback(self, callback):
         """设置进度回调函数"""
@@ -318,6 +376,37 @@ class LanzouDownloader:
             sanitized = "unnamed_file"
             
         return sanitized
+
+    def is_download_url_valid(self, url, timeout=8):
+        """轻量校验真实下载链接是否仍有效。"""
+        if not url:
+            return False
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+        }
+
+        try:
+            with self.http.head(url, allow_redirects=True, timeout=timeout, headers=headers) as r:
+                if r.status_code in (200, 206):
+                    return "text/html" not in (r.headers.get("Content-Type") or "").lower()
+                if r.status_code in (403, 404, 410):
+                    return False
+        except Exception:
+            pass
+
+        try:
+            h2 = dict(headers)
+            h2["Range"] = "bytes=0-0"
+            with self.http.get(url, headers=h2, stream=True, allow_redirects=True, timeout=timeout) as r:
+                if r.status_code in (206, 200):
+                    return "text/html" not in (r.headers.get("Content-Type") or "").lower()
+                if r.status_code in (403, 404, 410):
+                    return False
+        except Exception:
+            return False
+        return False
                 
     def download_single_file(self, file_info, download_dir="downloads", max_retries=3):
         """使用浏览器直接下载单个文件"""
@@ -486,65 +575,66 @@ class LanzouDownloader:
         return False
     
     def get_real_download_url(self, file_link):
-        """
-        使用DrissionPage获取真实的下载链接
-        """
-        try:
-            print(f"正在获取文件的真实下载链接: {file_link}")
-            
-            # 访问文件详情页面
-            self.driver.latest_tab.get(file_link)
-            time.sleep(5)  # 等待页面完全加载
-            
-            # 查找真实的下载链接
-            # 尝试多种可能的选择器来获取真实下载链接
-            selectors = [
-                'xpath://a[contains(@href, "developer-oss") and contains(@href, "toolsdown")]',
-                'xpath://a[contains(@href, "lanzoug.com") and contains(@href, "file")]',
-                'xpath://a[contains(@href, "lanzou")]',
-                'xpath://a[contains(@onclick, "down") or contains(@onclick, "download")]',
-                'css:a[href*="developer-oss"]',
-                'css:a[href*="lanzoug.com"]'
-            ]
-            
-            for selector in selectors:
-                try:
-                    elements = self.driver.latest_tab.eles(selector, timeout=3)
-                    if elements:
+        """使用DrissionPage获取真实下载链接。"""
+        if not file_link or not self.driver:
+            return None
+
+        with self.browser_lock:
+            tab = None
+            try:
+                print(f"正在获取文件的真实下载链接: {file_link}")
+                tab = self.driver.new_tab()
+                tab.get(file_link)
+                time.sleep(3)
+
+                selectors = [
+                    'xpath://a[contains(@href, "developer-oss") and contains(@href, "toolsdown")]',
+                    'xpath://a[contains(@href, "lanzoug.com") and contains(@href, "file")]',
+                    'xpath://a[contains(@href, "lanzou")]',
+                    'xpath://a[contains(@onclick, "down") or contains(@onclick, "download")]',
+                    'css:a[href*="developer-oss"]',
+                    'css:a[href*="lanzoug.com"]'
+                ]
+
+                for selector in selectors:
+                    try:
+                        elements = tab.eles(selector, timeout=3)
+                        if not elements:
+                            continue
                         for element in elements:
                             href = element.attr('href')
                             if href and ('developer-oss' in href or 'lanzoug.com' in href or 'downserver' in href):
                                 print(f"找到真实下载链接: {href}")
                                 return href
-                except:
-                    continue
-            
-            # 如果上面的方法都没有找到，尝试获取页面源码，从中提取链接
-            page_source = self.driver.latest_tab.html
-            import re
-            
-            # 查找可能包含真实下载链接的模式
-            patterns = [
-                r'https?://[^\s"<>\']*(?:developer-oss|lanzoug\.com|downserver)[^\s"<>\']*',
-                r'https?://[^\s"<>\']*toolsdown[^\s"<>\']*',
-                r'https?://[^\s"<>\']*\.lanzou[^\s"<>\']*'
-            ]
-            
-            for pattern in patterns:
-                matches = re.findall(pattern, page_source)
-                if matches:
-                    # 返回第一个看起来像是真实下载链接的URL
+                    except Exception:
+                        continue
+
+                page_source = tab.html or ""
+                patterns = [
+                    r'https?://[^\s"<>\']*(?:developer-oss|lanzoug\.com|downserver)[^\s"<>\']*',
+                    r'https?://[^\s"<>\']*toolsdown[^\s"<>\']*',
+                    r'https?://[^\s"<>\']*\.lanzou[^\s"<>\']*'
+                ]
+                for pattern in patterns:
+                    matches = re.findall(pattern, page_source)
+                    if not matches:
+                        continue
                     for match in matches:
                         if 'developer-oss' in match or 'toolsdown' in match or 'lanzoug.com' in match:
                             print(f"从页面源码中找到真实下载链接: {match}")
                             return match
-            
-            print("警告: 未能找到真实下载链接")
-            return None
-            
-        except Exception as e:
-            print(f"获取真实下载链接时出错: {e}")
-            return None
+
+                print("警告: 未能找到真实下载链接")
+                return None
+            except Exception as e:
+                print(f"获取真实下载链接时出错: {e}")
+                return None
+            finally:
+                try:
+                    if tab:
+                        tab.close()
+                except Exception:
+                    pass
 
     def download_with_requests(self, url, file_path, file_name):
         """
@@ -570,28 +660,29 @@ class LanzouDownloader:
             }
             
             # 发起请求，流式下载
-            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            response = self.http.get(url, headers=headers, stream=True, timeout=30)
             response.raise_for_status()
             
             # 获取文件总大小
             total_size = int(response.headers.get('content-length', 0))
             
             # 创建目录
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
             
             # 开始下载
             downloaded_size = 0
-            with open(file_path, 'wb') as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        file.write(chunk)
-                        downloaded_size += len(chunk)
-                        
-                        # 更新进度
-                        if total_size > 0:
-                            progress = int((downloaded_size / total_size) * 100)
-                            if self.progress_callback:
-                                self.progress_callback(file_name, downloaded_size, file_path, "下载中...", progress)
+            with response:
+                with open(file_path, 'wb') as file:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            file.write(chunk)
+                            downloaded_size += len(chunk)
+
+                            # 更新进度
+                            if total_size > 0:
+                                progress = int((downloaded_size / total_size) * 100)
+                                if self.progress_callback:
+                                    self.progress_callback(file_name, downloaded_size, file_path, "下载中...", progress)
             
             # 下载完成
             if self.progress_callback:
@@ -610,7 +701,7 @@ class LanzouDownloader:
                     pass
             return False
 
-    def download_single_file_optimized(self, file_info, download_dir="downloads"):
+    def download_single_file_optimized(self, file_info, download_dir="downloads", prefetched_real_url=None):
         """
         优化的下载方法：先获取真实下载链接，再用requests下载
         """
@@ -621,17 +712,23 @@ class LanzouDownloader:
             clean_filename = self.sanitize_filename(file_info['name'])
             file_path = os.path.join(download_dir, clean_filename)
             
-            # 首先尝试获取真实下载链接
-            real_url = self.get_real_download_url(file_info['link'])
-            
+            # 首先尝试预取结果，再回退到实时获取
+            real_url = prefetched_real_url
+            if not real_url or not self.is_download_url_valid(real_url):
+                real_url = self.get_real_download_url(file_info['link'])
+
             if not real_url:
-                print(f"未能获取到 {file_info['name']} 的真实下载链接，回退到原方法")
-                # 如果获取不到真实链接，则回退到原始的浏览器下载方法
-                return self.download_single_file_legacy(file_info, download_dir)
+                print(f"未能获取到 {file_info['name']} 的真实下载链接，跳过该文件")
+                return False
+
+            # 轻校验失败不立即返回，先尝试直接下载，避免误杀可用链接
+            if not self.is_download_url_valid(real_url):
+                print(f"真实链接校验未通过，先尝试直接下载: {file_info['name']}")
             
             # 使用requests下载真实链接
             success = self.download_with_requests(real_url, file_path, clean_filename)
-            
+            if not success:
+                print(f"requests下载失败，跳过该文件: {file_info['name']}")
             return success
             
         except Exception as e:
@@ -640,38 +737,62 @@ class LanzouDownloader:
 
     def download_single_file_legacy(self, file_info, download_dir="downloads", max_retries=3):
         """
-        原始的下载方法（保留作为备选方案）
+        原始浏览器下载兜底（已禁用）
         """
-        print(f"使用原始方法下载: {file_info['name']}")
-        # 这里保留原始的下载逻辑
-        # 为了简洁，这里只显示主要逻辑，实际实现应复制原始download_single_file方法
-        return self.download_single_file(file_info, download_dir, max_retries)
+        print(f"浏览器下载兜底已禁用，跳过该文件: {file_info['name']}")
+        return False
 
-    def download_multiple_files(self, selected_indices, download_dir="downloads", max_workers=None):
-        """批量下载文件"""
+    def download_multiple_files(self, selected_indices, download_dir="downloads", max_workers=None, prefetch_ahead=3):
+        """批量下载文件（滚动预取真实链接）。"""
         selected_files = [f for f in self.files if f['index'] in selected_indices]
         
         if not selected_files:
             print("没有选择任何文件")
             return []
         
-        print(f"准备下载 {len(selected_files)} 个文件")
-        
-        # 单线程顺序下载
+        if prefetch_ahead is None or prefetch_ahead < 0:
+            prefetch_ahead = 0
+
+        print(f"准备下载 {len(selected_files)} 个文件（滚动预取 ahead={prefetch_ahead}）")
+
+        prefetch = _PrefetchManager(self, max_queue_size=50)
+        prefetch.start()
+
         results = []
         total_files = len(selected_files)
-        
-        for i, file_info in enumerate(selected_files):
-            print(f"正在下载第 {i+1}/{total_files} 个文件: {file_info['name']}")
-            
-            # 使用优化的下载方法
-            success = self.download_single_file_optimized(file_info, download_dir)
-            results.append((file_info['name'], success))
-            
-            # 更新全局进度
-            if self.global_progress_callback:
-                progress = int(((i + 1) / total_files) * 100)
-                self.global_progress_callback(f"正在下载: {file_info['name']}", progress)
+
+        def _enqueue_window(current_index: int):
+            if prefetch_ahead <= 0:
+                return
+            start_i = current_index + 1
+            end_i = min(total_files, current_index + 1 + prefetch_ahead)
+            for j in range(start_i, end_i):
+                prefetch.enqueue(selected_files[j])
+
+        try:
+            for i, file_info in enumerate(selected_files):
+                print(f"正在下载第 {i+1}/{total_files} 个文件: {file_info['name']}")
+
+                if i == 0:
+                    _enqueue_window(current_index=0)
+                    cached_real_url = None
+                else:
+                    cached_real_url = prefetch.get_cached(file_info["index"])
+
+                success = self.download_single_file_optimized(
+                    file_info,
+                    download_dir,
+                    prefetched_real_url=cached_real_url
+                )
+                results.append((file_info['name'], success))
+
+                _enqueue_window(current_index=i)
+
+                if self.global_progress_callback:
+                    progress = int(((i + 1) / total_files) * 100)
+                    self.global_progress_callback(f"正在下载: {file_info['name']}", progress)
+        finally:
+            prefetch.stop()
         
         return results
 
@@ -679,454 +800,300 @@ class LanzouDownloader:
 class LanzouDownloaderGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("蓝奏云漫画下载器 - 开发版")
-        self.root.geometry("1000x700")
-        
+        self.root.title("蓝奏云下载器 - 开发版")
+        self.root.geometry("1200x800")
+
         # 初始化下载器实例
         self.downloader = LanzouDownloader()
-        self.is_downloading = False
-        
-        # 设置GUI组件
+
+        # 当前选中的文件列表
+        self.selected_files = []
+
+        # 创建界面
         self.setup_gui()
-        
-        # 设置进度回调
-        self.downloader.set_progress_callback(self.update_current_progress)
-        self.downloader.set_global_progress_callback(self.update_global_progress)
     
     def setup_gui(self):
+        """设置图形用户界面"""
         # 创建主框架
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # 配置行和列的权重
+
+        # 配置主窗口的权重
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        
-        # 获取文件按钮
-        self.get_files_btn = ttk.Button(main_frame, text="获取文件列表", command=self.get_files)
-        self.get_files_btn.grid(row=0, column=0, columnspan=2, pady=5)
-        
-        # 添加全选/取消全选按钮
-        self.select_files_btn = ttk.Button(main_frame, text="全选/取消全选", command=self.toggle_select_all)
-        self.select_files_btn.grid(row=1, column=0, columnspan=2, pady=5)
-        self.select_files_btn.config(state=tk.DISABLED)  # 初始禁用
-        
-        # 文件列表框架
-        files_frame = ttk.LabelFrame(main_frame, text="文件列表", padding="5")
-        files_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        main_frame.rowconfigure(1, weight=3)
+        main_frame.rowconfigure(2, weight=1)
+
+        # 创建控制框架
+        control_frame = ttk.LabelFrame(main_frame, text="控制", padding="10")
+        control_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        control_frame.columnconfigure(2, weight=1)
+
+        # 添加使用说明标签
+        instruction_label = ttk.Label(
+            control_frame,
+            text="提示: 按住Ctrl键可多选文件，选择完成后点击'选择文件'按钮确认，然后点击'开始下载'",
+            foreground="blue"
+        )
+        instruction_label.grid(row=0, column=0, columnspan=5, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # 获取文件列表按钮
+        self.refresh_btn = ttk.Button(control_frame, text="获取文件列表", command=self.manual_refresh_files)
+        self.refresh_btn.grid(row=1, column=0, padx=(0, 10))
+
+        # 选择下载目录按钮
+        self.browse_btn = ttk.Button(control_frame, text="浏览...", command=self.browse_directory)
+        self.browse_btn.grid(row=1, column=1, padx=(0, 10))
+
+        # 下载目录输入框
+        self.download_dir_var = tk.StringVar(value=os.path.join(os.getcwd(), "downloads"))
+        self.download_dir_entry = ttk.Entry(control_frame, textvariable=self.download_dir_var, state="readonly")
+        self.download_dir_entry.grid(row=1, column=2, sticky=(tk.W, tk.E), padx=(0, 10))
+
+        # 选择文件按钮
+        self.select_files_btn = ttk.Button(control_frame, text="选择文件", command=self.select_files)
+        self.select_files_btn.grid(row=1, column=3, padx=(0, 10))
+
+        # 开始下载按钮
+        self.download_btn = ttk.Button(control_frame, text="开始下载", command=self.start_download)
+        self.download_btn.grid(row=1, column=4)
+
+        # 创建文件列表框架
+        files_frame = ttk.LabelFrame(main_frame, text="文件列表", padding="10")
+        files_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         files_frame.columnconfigure(0, weight=1)
         files_frame.rowconfigure(0, weight=1)
-        
-        # 添加多选提示标签
-        hint_label = ttk.Label(files_frame, text="提示：按住 Ctrl 键可多选文件", foreground="gray")
-        hint_label.grid(row=0, column=0, sticky=tk.W, padx=(5, 0), pady=(0, 5))
-        
-        # 创建Treeview来显示文件列表
-        columns = ('序号', '文件名', '大小', '时间')
-        self.file_tree = ttk.Treeview(files_frame, columns=columns, show='headings', height=10)
-        
-        # 定义列标题
-        for col in columns:
-            self.file_tree.heading(col, text=col)
-            self.file_tree.column(col, width=150)
-        
-        # 添加滚动条
-        tree_scroll = ttk.Scrollbar(files_frame, orient=tk.VERTICAL, command=self.file_tree.yview)
-        self.file_tree.configure(yscrollcommand=tree_scroll.set)
-        
-        self.file_tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(5, 0))
-        tree_scroll.grid(row=1, column=1, sticky=(tk.N, tk.S), pady=(5, 0))
-        
 
-        
-        # 使用说明
-        instruction_frame = ttk.LabelFrame(main_frame, text="使用说明", padding="5")
-        instruction_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        
-        instructions = [
-            "1. 先点击上方的\"获取文件列表\"加载出所有可下载的文件",
-            "2. 在文件列表中，单击选中你想下载的文件",
-            "3. 按住ctrl键再单击可以实现多选",
-            "4. 选择完毕后，点击下方\"开始下载\"按钮"
-        ]
-        
-        for i, instruction in enumerate(instructions):
-            ttk.Label(instruction_frame, text=instruction, foreground="blue").grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
-        
-        # 下载设置区域
-        download_frame = ttk.LabelFrame(main_frame, text="下载设置", padding="5")
-        download_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        download_frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(download_frame, text="下载目录:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.download_dir_entry = ttk.Entry(download_frame)
-        self.download_dir_entry.insert(0, os.path.abspath("downloads"))
-        self.download_dir_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 5), pady=5)
-        
-        self.browse_btn = ttk.Button(download_frame, text="浏览...", command=self.browse_directory)
-        self.browse_btn.grid(row=0, column=2, padx=(5, 0), pady=5)
-        
-        # 开始下载按钮
-        self.download_btn = ttk.Button(download_frame, text="开始下载", command=self.start_download, state=tk.DISABLED)
-        self.download_btn.grid(row=1, column=0, columnspan=2, pady=5, sticky=tk.W)
-        
-        # 刷新文件列表按钮
-        self.refresh_btn = ttk.Button(download_frame, text="刷新文件列表", command=self.manual_refresh_files)
-        self.refresh_btn.grid(row=1, column=2, padx=(5, 0), pady=5, sticky=tk.E)
-        
+        # 创建Treeview和滚动条
+        columns = ("序号", "文件名", "大小", "时间", "链接")
+        self.tree = ttk.Treeview(files_frame, columns=columns, show="headings", height=20)
 
-        
-        # 全局进度条
-        ttk.Label(main_frame, text="总体进度:").grid(row=5, column=0, sticky=tk.W, pady=5)
-        self.global_progress = ttk.Progressbar(main_frame, mode='determinate')
-        self.global_progress.grid(row=5, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
-        
-        # 当前下载状态标签
-        self.global_status_label = ttk.Label(main_frame, text="准备就绪")
-        self.global_status_label.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        # 单个文件进度显示
-        ttk.Label(main_frame, text="当前文件进度:").grid(row=7, column=0, sticky=tk.W, pady=5)
-        self.current_progress = ttk.Progressbar(main_frame, mode='determinate')
-        self.current_progress.grid(row=7, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=5)
-        
-        # 当前文件状态标签
-        self.current_status_label = ttk.Label(main_frame, text="等待下载")
-        self.current_status_label.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        # 绑定双击事件以切换选择状态
-        self.file_tree.bind('<Double-1>', self.on_item_double_click)
-        
-        # 初始化下载目录
-        self.download_dir = "downloads"
-    
-    def choose_download_dir(self):
-        """选择下载目录"""
-        dir_path = filedialog.askdirectory(initialdir=self.download_dir)
-        if dir_path:
-            self.download_dir = dir_path
-            self.download_dir_label.config(text=f"下载目录: {self.download_dir}")
-    
-    def get_files(self):
-        """获取文件列表"""
-        try:
-            # 设置为忙碌状态
-            self.get_files_btn.config(state=tk.DISABLED)
-            self.select_files_btn.config(state=tk.DISABLED)
-            self.download_btn.config(state=tk.DISABLED)
-            
-            # 更新状态
-            self.global_status_label.config(text="正在获取文件列表...")
-            self.global_progress['value'] = 0
-            
-            # 设置浏览器驱动
-            self.downloader.setup_driver()
-            
-            # 获取文件
-            self.downloader.login_and_get_files()
-            
-            # 显示文件列表
-            self.display_files()
-            
-            # 启用选择和下载按钮
-            self.select_files_btn.config(state=tk.NORMAL)
-            self.download_btn.config(state=tk.NORMAL)
-            
-            # 更新状态
-            self.global_status_label.config(text=f"获取完成，共 {len(self.downloader.files)} 个文件")
-            self.global_progress['value'] = 100
-            
-        except Exception as e:
-            messagebox.showerror("错误", f"获取文件列表失败: {str(e)}")
-            self.global_status_label.config(text="获取失败")
-            self.global_progress['value'] = 0
-        finally:
-            # 恢复按钮状态
-            self.get_files_btn.config(state=tk.NORMAL)
-    
-    def display_files(self):
-        """显示文件列表"""
-        # 清空现有项目
-        for item in self.file_tree.get_children():
-            self.file_tree.delete(item)
-        
-        # 添加文件到树形视图
-        for file_info in self.downloader.files:
-            self.file_tree.insert('', tk.END, values=(
-                file_info['index'],
-                file_info['name'],
-                file_info['size'],
-                file_info['time']
-            ))
-        
-        # 保存原始文件名用于后续比较
-        self.original_filenames = {f['index']: f['name'] for f in self.downloader.files}
-    
-    def toggle_select_all(self):
-        """全选或取消全选"""
-        children = self.file_tree.get_children()
-        if children:
-            if len(self.file_tree.selection()) == len(children):
-                # 如果全部选中，则取消选择
-                self.file_tree.selection_remove(children)
-            else:
-                # 否则全选
-                self.file_tree.selection_set(children)
-    
-    def on_item_double_click(self, event):
-        """双击项目切换选择状态"""
-        item = self.file_tree.identify_row(event.y)
-        if item:
-            if item in self.file_tree.selection():
-                self.file_tree.selection_remove(item)
-            else:
-                self.file_tree.selection_add(item)
-    
+        # 设置列标题和宽度
+        self.tree.heading("序号", text="序号")
+        self.tree.heading("文件名", text="文件名")
+        self.tree.heading("大小", text="大小")
+        self.tree.heading("时间", text="时间")
+        self.tree.heading("链接", text="链接")
+
+        self.tree.column("序号", width=50, anchor=tk.CENTER)
+        self.tree.column("文件名", width=500)
+        self.tree.column("大小", width=100, anchor=tk.CENTER)
+        self.tree.column("时间", width=100, anchor=tk.CENTER)
+        self.tree.column("链接", width=200)
+
+        # 创建垂直滚动条
+        v_scrollbar = ttk.Scrollbar(files_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=v_scrollbar.set)
+
+        # 布局Treeview和滚动条
+        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # 进度框架
+        progress_frame = ttk.LabelFrame(main_frame, text="下载进度", padding="10")
+        progress_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        progress_frame.columnconfigure(0, weight=1)
+        progress_frame.rowconfigure(2, weight=1)
+
+        # 当前文件进度
+        current_progress_frame = ttk.Frame(progress_frame)
+        current_progress_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        current_progress_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(current_progress_frame, text="当前文件:").grid(row=0, column=0, sticky=tk.W)
+        self.current_file_var = tk.StringVar(value="无")
+        self.current_file_label = ttk.Label(current_progress_frame, textvariable=self.current_file_var, wraplength=800)
+        self.current_file_label.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 0))
+
+        # 进度条
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100)
+        self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+
+        # 总体进度
+        total_progress_frame = ttk.Frame(progress_frame)
+        total_progress_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
+        total_progress_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(total_progress_frame, text="总体进度:").grid(row=0, column=0, sticky=tk.W)
+        self.total_progress_var = tk.StringVar(value="0/0 (0%)")
+        ttk.Label(total_progress_frame, textvariable=self.total_progress_var).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 0))
+
+        # 状态栏
+        self.status_var = tk.StringVar(value="就绪")
+        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
+        status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E))
+
     def browse_directory(self):
         """浏览并选择下载目录"""
-        directory = filedialog.askdirectory(initialdir=self.download_dir_entry.get())
+        directory = filedialog.askdirectory(initialdir=self.download_dir_var.get())
         if directory:
-            self.download_dir_entry.delete(0, tk.END)
-            self.download_dir_entry.insert(0, directory)
-    
-    def start_download(self):
-        """开始下载选中的文件"""
-        if self.is_downloading:
-            return
-        
-        # 获取选中的文件索引
-        selected_items = self.file_tree.selection()
+            self.download_dir_var.set(directory)
+
+    def manual_refresh_files(self):
+        """手动刷新文件列表"""
+        self.refresh_files()
+
+    def refresh_files(self):
+        """刷新文件列表"""
+        try:
+            self.status_var.set("正在获取文件列表...")
+            self.root.update()
+
+            self.downloader.login_and_get_files()
+
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            for file_info in self.downloader.files:
+                self.tree.insert("", "end", values=(
+                    file_info["index"],
+                    file_info["name"],
+                    file_info["size"],
+                    file_info["time"],
+                    file_info["link"]
+                ))
+
+            self.status_var.set(f"就绪 - 共 {len(self.downloader.files)} 个文件")
+
+        except Exception as e:
+            messagebox.showerror("错误", f"获取文件列表时出错: {str(e)}")
+            self.status_var.set("错误")
+
+    def select_files(self):
+        """选择要下载的文件"""
+        selected_items = self.tree.selection()
         if not selected_items:
             messagebox.showwarning("警告", "请先选择要下载的文件")
             return
-        
-        # 获取文件索引
-        selected_indices = []
+
+        self.selected_files = []
         for item in selected_items:
-            values = self.file_tree.item(item)['values']
-            selected_indices.append(int(values[0]))
-        
-        # 确认下载
-        if not messagebox.askyesno("确认", f"确定要下载选中的 {len(selected_indices)} 个文件吗？"):
+            values = self.tree.item(item)["values"]
+            file_info = {
+                "index": values[0],
+                "name": values[1],
+                "size": values[2],
+                "time": values[3],
+                "link": values[4]
+            }
+            self.selected_files.append(file_info)
+
+        selected_names = [f["name"] for f in self.selected_files]
+        if len(selected_names) <= 5:
+            display_text = "已选中: " + ", ".join(selected_names)
+        else:
+            display_text = f"已选中: {', '.join(selected_names[:5])} 等{len(selected_names)}个文件"
+
+        self.current_file_var.set(display_text)
+        messagebox.showinfo("提示", f"已选择 {len(self.selected_files)} 个文件，点击'开始下载'按钮开始下载")
+
+    def start_download(self):
+        """开始下载选中的文件"""
+        if not self.selected_files:
+            messagebox.showwarning("警告", "请先选择要下载的文件（点击'选择文件'按钮确认）")
             return
-        
-        # 启动下载线程
-        self.is_downloading = True
-        self.download_btn.config(state=tk.DISABLED)
-        self.select_files_btn.config(state=tk.DISABLED)
-        self.get_files_btn.config(state=tk.DISABLED)
-        
-        download_thread = threading.Thread(
-            target=self.download_files_thread,
-            args=(selected_indices, self.download_dir)
-        )
-        download_thread.daemon = True
-        download_thread.start()
-    
-    def download_files_thread(self, selected_indices, download_dir):
+
+        download_dir = self.download_dir_var.get()
+        if not download_dir:
+            messagebox.showwarning("警告", "请选择下载目录")
+            return
+
+        thread = threading.Thread(target=self.download_files_thread, args=(download_dir,))
+        thread.daemon = True
+        thread.start()
+
+    def download_files_thread(self, download_dir):
         """下载文件的线程函数"""
         try:
-            # 更新全局进度
-            self.update_global_progress("开始下载...", 0)
-            
-            # 执行下载
-            results = self.downloader.download_multiple_files(selected_indices, download_dir)
-            
-            # 统计结果
-            successful = sum(1 for _, success in results if success)
-            total = len(results)
-            
-            # 更新最终状态
-            self.update_global_progress(f"下载完成: {successful}/{total}", 100)
-            
-            # 更新文件列表显示状态
-            self.update_file_list_display()
-            
+            self.root.after(0, lambda: self.status_var.set("正在下载..."))
+
+            # 初始化浏览器（仅用于获取真实链接）
+            self.downloader.setup_driver()
+
+            self.downloader.set_progress_callback(self.update_progress)
+
+            total_files = len(self.selected_files)
+            completed_files = 0
+
+            prefetch_ahead = 3
+            prefetch = _PrefetchManager(self.downloader, max_queue_size=50)
+            prefetch.start()
+
+            def _enqueue_window(current_index: int):
+                if prefetch_ahead <= 0:
+                    return
+                start_i = current_index + 1
+                end_i = min(total_files, current_index + 1 + prefetch_ahead)
+                for j in range(start_i, end_i):
+                    prefetch.enqueue(self.selected_files[j])
+
+            try:
+                for i, file_info in enumerate(self.selected_files):
+                    self.root.after(
+                        0,
+                        lambda i=i, total=total_files: self.total_progress_var.set(
+                            f"{i}/{total_files} ({int(i/total*100)}%)"
+                        )
+                    )
+
+                    if i == 0:
+                        _enqueue_window(current_index=0)
+                        cached_real_url = None
+                    else:
+                        cached_real_url = prefetch.get_cached(file_info["index"])
+
+                    success = self.downloader.download_single_file_optimized(
+                        file_info,
+                        download_dir,
+                        prefetched_real_url=cached_real_url
+                    )
+
+                    if success:
+                        completed_files += 1
+
+                    _enqueue_window(current_index=i)
+
+                    self.root.after(
+                        0,
+                        lambda comp=completed_files, total=total_files: self.total_progress_var.set(
+                            f"{comp}/{total_files} ({int(comp/total*100)}%)"
+                        )
+                    )
+            finally:
+                prefetch.stop()
+
+            self.root.after(0, lambda: self.status_var.set(f"下载完成 - {completed_files}/{total_files} 个文件"))
+
         except Exception as e:
-            print(f"下载过程中出错: {e}")
-            self.update_global_progress(f"下载出错: {str(e)}", 0)
+            self.root.after(0, lambda: messagebox.showerror("错误", f"下载过程中出错: {str(e)}"))
+            self.root.after(0, lambda: self.status_var.set("下载出错"))
         finally:
-            # 恢复界面状态
-            self.root.after(0, self.reset_download_state)
-    
-    def update_file_list_display(self):
-        """更新文件列表显示状态"""
-        # 获取当前选中项
-        current_selection = self.file_tree.selection()
-        
-        # 获取已下载的文件
-        downloaded_files = set()
-        if os.path.exists(self.download_dir):
-            downloaded_files = set(os.listdir(self.download_dir))
-        
-        # 获取所有项目
-        items = self.file_tree.get_children()
-        
-        # 更新每个项目的显示
-        for item in items:
-            item_values = self.file_tree.item(item)['values']
-            file_index = item_values[0]
-            
-            # 找到对应的文件信息
-            file_info = None
-            for f_info in self.downloader.files:
-                if str(f_info['index']) == str(file_index):
-                    file_info = f_info
-                    break
-            
-            if file_info:
-                clean_name = self.downloader.sanitize_filename(file_info['name'])
-                # 如果文件已存在，添加已下载标识
-                if clean_name in downloaded_files:
-                    display_name = f"{file_info['name']} [已下载]"
-                    tag = 'downloaded'
-                else:
-                    display_name = file_info['name']
-                    tag = 'unchecked'
-                
-                # 更新项目
-                self.file_tree.item(item, values=(
-                    file_info['index'],
-                    display_name,
-                    file_info['size'],
-                    file_info['time']
-                ), tags=(tag,))
-        
-        # 恢复之前的选中状态
-        for item_id in current_selection:
-            if item_id in self.file_tree.get_children():  # 确保项目还存在
-                self.file_tree.selection_add(item_id)
-    
-    def check_downloaded_files(self, download_dir):
-        """检查哪些文件已经下载了"""
-        downloaded_files = set()
-        if os.path.exists(download_dir):
-            downloaded_files = {f for f in os.listdir(download_dir) if os.path.isfile(os.path.join(download_dir, f))}
-        
-        downloaded_file_names = set()
-        for file_name in downloaded_files:
-            # 检查是否与蓝奏云文件名匹配（考虑文件名被清理的情况）
-            for file_info in self.downloader.files:
-                clean_name = self.downloader.sanitize_filename(file_info['name'])
-                if clean_name == file_name:
-                    downloaded_file_names.add(clean_name)
-                    break
-        
-        return downloaded_file_names
-
-    def refresh_file_list_display(self):
-        """刷新文件列表显示，更新已下载文件的状态"""
-        # 保存当前选中的项目
-        current_selection = self.file_tree.selection()
-        
-        # 重新获取文件列表（但不重新获取网络数据，只是更新显示）
-        download_dir = self.download_dir_entry.get().strip()
-        if not download_dir:
-            download_dir = "downloads"
-        
-        # 检查哪些文件已经下载了
-        downloaded_files = self.check_downloaded_files(download_dir)
-        
-        # 获取当前所有项目
-        items = self.file_tree.get_children()
-        
-        # 更新每个项目的显示
-        for item in items:
-            item_values = self.file_tree.item(item)['values']
-            file_index = item_values[0]
-            
-            # 找到对应的文件信息
-            file_info = None
-            for f_info in self.downloader.files:
-                if str(f_info['index']) == str(file_index):
-                    file_info = f_info
-                    break
-            
-            if file_info:
-                clean_name = self.downloader.sanitize_filename(file_info['name'])
-                # 如果文件已存在，添加已下载标识
-                if clean_name in downloaded_files:
-                    display_name = f"{file_info['name']} [已下载]"
-                    tag = 'downloaded'
-                else:
-                    display_name = file_info['name']
-                    tag = 'unchecked'
-                
-                # 更新项目
-                self.file_tree.item(item, values=(
-                    file_info['index'],
-                    display_name,
-                    file_info['size'],
-                    file_info['time']
-                ), tags=(tag,))
-        
-        # 恢复之前的选中状态
-        for item_id in current_selection:
-            if item_id in self.file_tree.get_children():  # 确保项目还存在
-                self.file_tree.selection_add(item_id)
-
-    def manual_refresh_files(self):
-        """手动刷新文件列表，标记已下载文件"""
-        self.refresh_file_list_display()
-        
-        # 检查是否有选中的文件，如果有则启用下载按钮
-        selected_items = self.file_tree.selection()
-        if selected_items:
-            self.download_btn.config(state=tk.NORMAL)
-        else:
-            self.download_btn.config(state=tk.DISABLED)
-
-    def reset_download_state(self):
-        """重置下载状态"""
-        self.download_btn.config(state=tk.NORMAL)
-        self.select_files_btn.config(state=tk.NORMAL)
-        self.get_files_btn.config(state=tk.NORMAL)
-        self.is_downloading = False
-    
-    def update_global_progress(self, status_text, percentage):
-        """更新全局进度"""
-        self.global_status_label.config(text=status_text)
-        self.global_progress['value'] = percentage
-    
-    def update_current_progress(self, filename, current_bytes, filepath, speed, progress_percent):
-        """更新当前文件进度"""
-        # 更新状态文本
-        size_mb = current_bytes / (1024 * 1024)
-        self.current_status_label.config(text=f"{filename} - {size_mb:.2f}MB, 速度: {speed}")
-        
-        # 更新进度条
-        self.current_progress['value'] = progress_percent
-    
-    def on_closing(self):
-        """窗口关闭事件"""
-        if self.is_downloading:
-            if messagebox.askokcancel("确认", "正在下载中，确定要退出吗？"):
-                # 关闭浏览器
-                if hasattr(self.downloader, 'driver'):
-                    try:
-                        self.downloader.driver.quit()
-                    except:
-                        pass
-                self.root.destroy()
-        else:
-            # 关闭浏览器
-            if hasattr(self.downloader, 'driver'):
+            if self.downloader.driver:
                 try:
                     self.downloader.driver.quit()
-                except:
+                except Exception:
                     pass
-            self.root.destroy()
+
+    def update_progress(self, filename, downloaded_size, filepath, status, progress):
+        """更新进度回调"""
+        self.root.after(0, lambda: self.current_file_var.set(f"{filename} - {status}"))
+        self.root.after(0, lambda: self.progress_var.set(progress))
+
+    def on_closing(self):
+        """关闭窗口时的处理"""
+        if self.downloader.driver:
+            try:
+                self.downloader.driver.quit()
+            except Exception:
+                pass
+        self.root.destroy()
 
 
 def main():
     root = tk.Tk()
     app = LanzouDownloaderGUI(root)
-    
-    # 设置窗口关闭事件
-    root.protocol("WM_DELETE_WINDOW", app.on_closing)
-    
-    # 启动GUI
     root.mainloop()
 
 
