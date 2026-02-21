@@ -1066,6 +1066,21 @@ class LanzouDownloaderGUI:
 
             self.root.after(0, lambda: self.status_var.set(f"下载完成 - {completed_files}/{total_files} 个文件"))
 
+            def _ask_open_download_dir():
+                if completed_files <= 0:
+                    return
+                should_open = messagebox.askyesno(
+                    "下载完成",
+                    f"下载完成 - {completed_files}/{total_files} 个文件。\n是否打开下载目录？"
+                )
+                if should_open:
+                    try:
+                        os.startfile(download_dir)
+                    except Exception as e:
+                        messagebox.showerror("错误", f"打开下载目录失败: {str(e)}")
+
+            self.root.after(0, _ask_open_download_dir)
+
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("错误", f"下载过程中出错: {str(e)}"))
             self.root.after(0, lambda: self.status_var.set("下载出错"))
