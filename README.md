@@ -174,7 +174,20 @@ dist\lanzou_downloader_gui.exe
 
 ## 版本历史
 
-### v5.1 (最新版本)
+### v6.0 (最新版本)
+- 代码架构重构：将核心逻辑抽离至 `source_code_common/lanzou_gui_core.py`，`dev/prod` 目录改为轻量入口层
+- 新增双模式入口：
+  - 生产版：`source_code_prod/lanzoub_downloader_gui_mix.py`（requests + 浏览器兜底）
+  - 生产版：`source_code_prod/lanzoub_downloader_gui_pure_requests.py`（纯 requests）
+  - 开发版：`source_code_dev/lanzou_downloader_gui_dev_mix.py`（requests + 浏览器兜底）
+  - 开发版：`source_code_dev/lanzou_downloader_gui_dev_pure_requests.py`（纯 requests）
+- 纯 requests 下载链路增强：新增 `acw_sc__v2` 挑战识别与自动求解，避免将挑战 HTML 误保存为文件
+- 下载可靠性提升：增加“响应仍为 HTML 时阻止落盘”的保护，避免 5KB 假文件
+- 入口可执行性优化：支持以绝对路径直接启动脚本（自动注入项目根路径）
+- 发布产物：
+  - `release/v6.0/lanzoub_downloader_gui_mix_v6_0.exe`
+
+### v5.1
 - 下载链路升级为“浏览器仅负责获取真实下载链接”，文件下载统一走 `requests`，并移除浏览器下载兜底路径
 - 新增真实链接有效性校验：下载前基于 `HEAD` + `Range GET (bytes=0-0)` 与 `Content-Type` 做轻量判断
 - 新增“校验失败先直下”策略：为避免误判可用链接，校验不通过时仍先尝试直链下载，失败后再判定该文件失败
