@@ -17,9 +17,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val downloader = container.downloader
     private val historyStore = container.historyStore
 
-    private val _state = MutableStateFlow(
-        UiState(downloadedNames = historyStore.loadDownloadedNames())
-    )
+    init {
+        // Clear stale history on startup so files remain selectable after app restart.
+        historyStore.clearDownloadedNames()
+    }
+
+    private val _state = MutableStateFlow(UiState(downloadedNames = emptySet()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     fun fetchFiles() {
@@ -147,15 +150,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         order: Int,
         total: Int
     ): Boolean {
-        _state.value = _state.value.copy(status = UiMessages.extracting(order, total, file.name))
         val real = repo.resolveRealUrl(file.link)
         if (real.isNullOrBlank()) {
-            _state.value = _state.value.copy(status = UiMessages.resolveFailed(order, total, file.name))
             return false
-        }
-
-        if (!downloader.isDownloadUrlValid(real)) {
-            _state.value = _state.value.copy(status = UiMessages.precheckWarn(order, total, file.name))
         }
 
         val firstTryOk = downloadWithProgress(
@@ -167,7 +164,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
         if (firstTryOk) return true
 
-        _state.value = _state.value.copy(status = UiMessages.firstTryFailed(order, total, file.name))
         val fresh = repo.resolveRealUrl(file.link) ?: return false
         return downloadWithProgress(
             url = fresh,

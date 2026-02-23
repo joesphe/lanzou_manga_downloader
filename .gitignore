@@ -116,3 +116,14 @@ build_private_repository/
 js-reverse-automation/
 test_txt/
 AGENTS.md
+
+# Android / Gradle generated files
+source_code_android/.gradle/
+source_code_android/.kotlin/
+source_code_android/.idea/
+source_code_android/.cxx/
+source_code_android/.externalNativeBuild/
+source_code_android/captures/
+source_code_android/build/
+source_code_android/app/build/
+source_code_android/local.properties

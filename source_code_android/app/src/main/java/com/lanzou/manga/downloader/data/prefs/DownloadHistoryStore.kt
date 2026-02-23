@@ -13,6 +13,10 @@ class DownloadHistoryStore(context: Context) {
         prefs.edit().putStringSet(KEY_DOWNLOADED_NAMES, names).apply()
     }
 
+    fun clearDownloadedNames() {
+        prefs.edit().remove(KEY_DOWNLOADED_NAMES).apply()
+    }
+
     private companion object {
         const val PREFS_NAME = "lanzou_downloader_prefs"
         const val KEY_DOWNLOADED_NAMES = "downloaded_names"

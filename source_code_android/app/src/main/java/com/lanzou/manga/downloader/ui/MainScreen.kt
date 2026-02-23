@@ -4,9 +4,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -40,55 +47,85 @@ fun MainScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = "Lanzou Downloader Android")
-            Button(
-                onClick = onFetchFiles,
-                enabled = !ui.isLoadingList && !ui.isDownloading
-            ) { Text(if (ui.isLoadingList) "获取中..." else "获取文件列表") }
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Lanzou Downloader",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Button(
+                        onClick = onFetchFiles,
+                        enabled = !ui.isLoadingList && !ui.isDownloading
+                    ) { Text(if (ui.isLoadingList) "获取中..." else "获取文件列表") }
+                    OutlinedTextField(
+                        value = ui.searchQuery,
+                        onValueChange = onUpdateSearchQuery,
+                        label = { Text("按名称搜索") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !ui.isDownloading
+                    )
 
-            OutlinedTextField(
-                value = ui.searchQuery,
-                onValueChange = onUpdateSearchQuery,
-                label = { Text("按名称搜索") },
-                singleLine = true,
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = onSelectAll,
+                            enabled = ui.files.isNotEmpty() && !ui.isDownloading
+                        ) { Text("全选") }
+                        OutlinedButton(
+                            onClick = onInvertSelection,
+                            enabled = filteredFiles.isNotEmpty() && !ui.isDownloading
+                        ) { Text("反选") }
+                        OutlinedButton(
+                            onClick = onClearSelection,
+                            enabled = ui.selectedIndices.isNotEmpty() && !ui.isDownloading
+                        ) { Text("清空") }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("只看未下载")
+                            Switch(
+                                checked = ui.onlyUndownloaded,
+                                onCheckedChange = onToggleOnlyUndownloaded,
+                                enabled = !ui.isDownloading
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = onOpenDownloadDirectory
+                        ) { Text("打开目录") }
+                    }
+                }
+            }
+
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !ui.isDownloading
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onSelectAll,
-                    enabled = ui.files.isNotEmpty() && !ui.isDownloading
-                ) { Text("全选") }
-                Button(
-                    onClick = onInvertSelection,
-                    enabled = filteredFiles.isNotEmpty() && !ui.isDownloading
-                ) { Text("反选") }
-                Button(
-                    onClick = onClearSelection,
-                    enabled = ui.selectedIndices.isNotEmpty() && !ui.isDownloading
-                ) { Text("清空选择") }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("只看未下载")
-                Switch(
-                    checked = ui.onlyUndownloaded,
-                    onCheckedChange = onToggleOnlyUndownloaded,
-                    enabled = !ui.isDownloading
-                )
-            }
-
-            Button(
                 onClick = onDownloadSelected,
                 enabled = selectableSelectedCount > 0 && !ui.isDownloading && !ui.isLoadingList
             ) { Text(if (ui.isDownloading) "下载中..." else "确认下载") }
 
-            Button(onClick = onOpenDownloadDirectory) { Text("打开下载目录") }
-            Text(text = "状态: ${ui.status}")
-            Text(
-                text = "文件数: ${ui.files.size}，搜索结果: ${filteredFiles.size}，已选(未下载): $selectableSelectedCount，已下载: ${ui.downloadedNames.size}"
-            )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (ui.isDownloading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Text(text = "状态: ${ui.status}", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+                    Text(
+                        text = "文件数: ${ui.files.size} | 搜索结果: ${filteredFiles.size} | 已选: $selectableSelectedCount | 已下载: ${ui.downloadedNames.size}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
 
             FileList(
                 modifier = Modifier
@@ -115,32 +152,48 @@ private fun FileList(
 ) {
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(files, key = { it.index }) { f ->
             val checked = selectedIndices.contains(f.index)
             val downloaded = downloadedNames.contains(f.name)
-            Row(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(enabled = !isDownloading && !downloaded) { onToggleSelection(f.index) }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Checkbox(
-                    checked = checked,
-                    onCheckedChange = { onToggleSelection(f.index) },
-                    enabled = !isDownloading && !downloaded
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (downloaded) "${f.index}. ${f.name} [已下载]" else "${f.index}. ${f.name}",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = checked,
+                        onCheckedChange = { onToggleSelection(f.index) },
+                        enabled = !isDownloading && !downloaded
                     )
-                    Text(
-                        text = "大小: ${f.size}  时间: ${f.time}",
-                        style = MaterialTheme.typography.bodySmall
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${f.index}. ${f.name}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "大小: ${f.size}  时间: ${f.time}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    AssistChip(
+                        onClick = {},
+                        enabled = false,
+                        label = {
+                            Text(
+                                when {
+                                    downloaded -> "已下载"
+                                    checked -> "待下载"
+                                    else -> "未下载"
+                                }
+                            )
+                        }
                     )
                 }
             }
