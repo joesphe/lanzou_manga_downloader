@@ -102,7 +102,7 @@ celerybeat.pid
 # Production files
 lanzou_downloader_gui_prod.py
 *.exe
-
+*.apk
 backup/
 
 蓝奏云漫画资源链接.txt

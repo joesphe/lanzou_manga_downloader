@@ -172,9 +172,44 @@ dist\lanzou_downloader_gui.exe
 - 包含所有必要依赖项
 - 文件大小约24MB
 
+## Android APK 使用说明
+
+- Android 工程目录：`source_code_android/`
+- 调试包构建命令（WSL Ubuntu）：
+```bash
+cd /mnt/d/lanzou_manga_downloader/source_code_android
+./gradlew --no-daemon clean assembleDebug
+```
+- APK 默认产物：
+  - `source_code_android/app/build/outputs/apk/debug/app-debug.apk`
+- 发布目录（本仓库）：
+  - `release/apks/`
+  - 当前版本归档：`release/apks/v1.0.1/lanzouMangaDownloader.apk`
+
 ## 版本历史
 
-### v6.0 (最新版本)
+### Android 版本更迭
+
+#### v1.0.1 (最新版本)
+- 完成 Android 端结构化重构（不改变核心业务行为）：
+  - 统一筛选/选择逻辑（`UiSelectors`）
+  - UI 拆分为 `MainScreen` + `FileList`
+  - 下载流程拆分为更小函数，便于维护
+  - 网络请求头常量统一（`AppHttp`）
+  - 下载历史存储抽离（`DownloadHistoryStore`）
+  - UI 文案集中管理（`UiMessages`）
+  - 轻量依赖容器（`AppContainer`）
+- 新增交互：
+  - `反选`
+  - `只看未下载`
+  - `按名称搜索`
+  - 记住已下载状态并跳过已下载文件
+- APK 发布：
+  - `release/apks/v1.0.1/lanzouMangaDownloader.apk`
+
+### Windows 版本更迭
+
+#### v6.0 (最新版本)
 - 代码架构重构：将核心逻辑抽离至 `source_code_common/lanzou_gui_core.py`，`dev/prod` 目录改为轻量入口层
 - 新增双模式入口：
   - 生产版：`source_code_prod/lanzoub_downloader_gui_mix.py`（requests + 浏览器兜底）
@@ -187,7 +222,7 @@ dist\lanzou_downloader_gui.exe
 - 发布产物：
   - `release/v6.0/lanzoub_downloader_gui_mix_v6_0.exe`
 
-### v5.1
+#### v5.1
 - 下载链路升级为“浏览器仅负责获取真实下载链接”，文件下载统一走 `requests`，并移除浏览器下载兜底路径
 - 新增真实链接有效性校验：下载前基于 `HEAD` + `Range GET (bytes=0-0)` 与 `Content-Type` 做轻量判断
 - 新增“校验失败先直下”策略：为避免误判可用链接，校验不通过时仍先尝试直链下载，失败后再判定该文件失败
@@ -195,7 +230,7 @@ dist\lanzou_downloader_gui.exe
 - 预取与下载时序优化：第 1 个文件始终实时取链下载，后续文件下载前自动校验链接，过期则自动重新获取
 - GUI 交互与进度显示优化：统一控制区布局、当前文件进度条、总体进度文本与状态栏实时更新
 
-### v5.0
+#### v5.0
 - 文件列表获取改为优先使用 `filemoreajax.php` 直连分页模式，不再依赖持续点击“显示更多”
 - 完整支持 `pg` 分页拉取（每页最多 50 条），可自动适配后续文件数量增长
 - 增强稳定性：新增 `zt=4` 与网络异常重试机制，失败时自动刷新页面上下文后继续请求
@@ -205,13 +240,13 @@ dist\lanzou_downloader_gui.exe
 - 开发版与生产版核心列表分页逻辑同步，行为一致性更好
 - 依赖清单按用途拆分：运行依赖 `requirements.txt`，开发分析依赖 `requirements_reverse.txt`
 
-### v4.2
+#### v4.2
 - 新增优化的下载功能：通过DrissionPage获取真实下载链接后使用requests进行下载
 - 当获取到真实下载链接时，使用requests库直接下载，提高下载速度和稳定性
 - 当无法获取真实链接时，自动回退到原始的浏览器下载方法，保证兼容性
 - 优化了下载流程，减少页面交互步骤，提升用户体验
 
-### v4.1 
+#### v4.1 
 - 对获取文件内容进行了优化，大大减少了获取时间
 - 通过智能检测文件加载状态，减少不必要的等待时间
 - 优化了"显示更多文件"按钮的点击策略，提高加载效率
@@ -223,3 +258,38 @@ dist\lanzou_downloader_gui.exe
 
 ## 作者
 曜曜
+
+## GitHub Release 发布规范（Win/Android）
+
+建议每次发布遵循以下规则：
+
+1. 版本号
+- 统一使用语义化版本：`v主版本.次版本.修订号`（示例：`v6.0.0`、`v1.0.1`）
+- Windows 与 Android 共用同一发布标签时，可在资产名中区分平台。
+
+2. Tag 与 Release 命名
+- Tag：`vX.Y.Z`
+- Release 标题：`vX.Y.Z - Windows/Android`
+
+3. 资产命名（Assets）
+- Windows：
+  - `lanzouMangaDownloader_win_x64_vX.Y.Z.exe`
+- Android：
+  - `lanzouMangaDownloader_android_vX.Y.Z.apk`
+
+4. Release Notes 建议模板
+- `新增`：新功能
+- `优化`：性能/体验/结构优化
+- `修复`：关键 Bug 修复
+- `兼容性`：系统版本与依赖变化
+- `已知问题`：暂未解决的问题
+- `校验信息`：文件大小、SHA256（建议）
+
+5. 分支与提交建议
+- 先在主分支完成可编译状态，再打 Tag 发布
+- Tag 对应 commit 必须可复现构建产物
+
+6. 最低发布检查清单
+- Windows 可启动、可获取列表、可下载 1 小文件 + 1 大文件
+- Android 可启动、可获取列表、可下载并落盘到 `Download/MangaDownload`
+- README 版本历史与资产路径已更新

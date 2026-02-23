@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LanzouDownloaderAndroid"
+rootProject.name = "LanzouMangaDownloaderAndroid"
 include(":app")
