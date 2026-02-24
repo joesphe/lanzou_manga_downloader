@@ -1,22 +1,33 @@
-# Android Migration Skeleton
+# Lanzou Downloader Android
 
-This module is a starter Android project for migrating the current Python downloader logic.
+Android client for Lanzou file listing and downloads.
 
-## Goals (MVP)
-- Fetch Lanzou file list
-- Resolve real download URL via requests flow (`i -> fn -> ajaxm.php`)
-- Download files with progress
-- Handle `acw_sc__v2` challenge in pure network mode
+## Current scope
+- Fetch file list.
+- Resolve real download links (`i -> fn -> ajaxm.php` flow).
+- Download selected files with progress.
+- Solve `acw_sc__v2` challenge in pure network mode.
+- UI built with Compose + Miuix.
 
-## Current status
-- Project skeleton and core interfaces are created.
-- Resolver/challenge/download paths are scaffolded with pragmatic defaults and TODO markers.
-- Default URL/password are injected from obfuscated constants (same algorithm as desktop production).
+## Build environment
+- Recommended: WSL Ubuntu + JDK 17.
+- Gradle wrapper entry: `./gradlew` (Linux/macOS/WSL).
 
-## Recommended next steps
-1. Open this folder in Android Studio.
-2. Set your package name if needed.
-3. Fill constants in `BuildConfig` or local storage for default URL/password.
-4. Complete parser edge-cases in `LanzouResolver`.
-5. Wire UI actions in `MainViewModel`.
-6. Add instrumentation tests for resolver/challenge functions.
+Build debug APK:
+
+```bash
+cd /mnt/d/lanzou_manga_downloader/source_code_android
+./gradlew :app:assembleDebug --no-daemon
+```
+
+Output:
+- `app/build/outputs/apk/debug/app-debug.apk`
+
+## Key module layout
+- `app/src/main/java/com/lanzou/manga/downloader/data`: config, network, repository, prefs
+- `app/src/main/java/com/lanzou/manga/downloader/domain`: challenge, resolver, downloader, use cases
+- `app/src/main/java/com/lanzou/manga/downloader/ui`: Compose UI, state, selectors, view model
+
+## Notes
+- Project tracks source files only; local caches and build outputs should be ignored.
+- If download behavior changes, update both resolver and parser paths together.
