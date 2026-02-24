@@ -15,9 +15,23 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
-class DownloadManager(private val client: OkHttpClient) {
+class DownloadManager(private val client: OkHttpClient) : FileDownloader {
     private val validationPolicy = ConcurrentHashMap<String, ValidationState>()
+
+    private fun maskUrl(url: String): String {
+        return runCatching {
+            val secret = "lanzou_log_mask_v1".toByteArray(Charsets.UTF_8)
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(secret, "HmacSHA256"))
+            val digest = mac.doFinal(url.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+                .take(12)
+            "<url_hash:$digest>"
+        }.getOrDefault("<masked>")
+    }
 
     fun isDownloadUrlValid(url: String, timeoutSec: Long = 8): Boolean {
         if (url.isBlank()) return false
@@ -66,7 +80,7 @@ class DownloadManager(private val client: OkHttpClient) {
 
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) {
-                Log.e("DownloadManager", "download failed status=${resp.code} url=$url")
+                Log.e("DownloadManager", "download failed status=${resp.code} url=${maskUrl(url)}")
                 return false
             }
             val body = resp.body ?: return false
@@ -136,12 +150,12 @@ class DownloadManager(private val client: OkHttpClient) {
         }
     }
 
-    fun downloadToPublicDownloads(
+    override fun downloadToPublicDownloads(
         context: Context,
         url: String,
         fileName: String,
-        subDir: String = "MangaDownload",
-        onProgress: (Int) -> Unit = {}
+        subDir: String,
+        onProgress: (Int) -> Unit
     ): Pair<Boolean, String> {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver

@@ -12,6 +12,7 @@ import requests
 import threading
 import re
 import json
+import hmac
 try:
     from DrissionPage import Chromium, ChromiumOptions, SessionOptions
 except Exception:
@@ -118,6 +119,17 @@ class OptimizedLanzouDownloader:
     def set_global_progress_callback(self, callback):
         """设置全局进度回调函数"""
         self.global_progress_callback = callback
+
+    def _mask_url(self, raw):
+        if not raw:
+            return "<empty>"
+        try:
+            secret = b"lanzou_log_mask_v1"
+            digest = hmac.new(secret, raw.encode("utf-8"), hashlib.sha256).hexdigest()[:12]
+            return f"<url_hash:{digest}>"
+        except Exception:
+            pass
+        return "<masked>"
         
     def setup_driver(self):
         """设置浏览器驱动"""
@@ -166,44 +178,35 @@ class OptimizedLanzouDownloader:
         self.driver = Chromium(addr_or_opts=co, session_options=so)
     
     def _get_obfuscated_credentials(self):
-        """使用深度混淆技术获取凭证"""
-        import hashlib
-        
-        # 通过计算生成的正确混淆数据
-        url_obfuscated = [
-            0x0B, 0x30, 0xA2, 0x6D, 0x31, 0x15, 0x5A, 0x9F, 0x52, 0x1F, 0xC1, 0x28, 0x36, 0x7E, 0x8C, 0xCA, 
-            0x67, 0x18, 0x6C, 0x82, 0x57, 0x85, 0xF5, 0x9F, 0x7C, 0x20, 0xC4, 0x17, 0x95, 0x5B, 0x89, 0xD7, 
-            0x94, 0xED, 0x83
-        ]
-        
-        # 密码 "8255" 混淆数据
-        password_obfuscated = [0xBD, 0xF2, 0xFD, 0xA7]
-        
-        def get_dynamic_key(index, base_offset=0):
-            # 基于复杂计算生成动态密钥
-            hash_input = f"dynamic_key_{index + base_offset}_secret_salt".encode()
-            hash_val = hashlib.sha256(hash_input).hexdigest()
-            return int(hash_val[:2], 16)  # 取前两位十六进制作为密钥
-        
-        # 解密URL
-        url_bytes = bytearray()
-        for i, obf_byte in enumerate(url_obfuscated):
-            key = get_dynamic_key(i, 0)
-            decrypted_byte = obf_byte ^ key
-            url_bytes.append(decrypted_byte)
-        
-        url = url_bytes.decode('utf-8', errors='ignore')
-        
-        # 解密密码
-        password_bytes = bytearray()
-        for i, obf_byte in enumerate(password_obfuscated):
-            key = get_dynamic_key(i + len(url_obfuscated), 0)  # 使用相同的偏移基础
-            decrypted_byte = obf_byte ^ key
-            password_bytes.append(decrypted_byte)
-        
-        password = password_bytes.decode('utf-8', errors='ignore')
-        
-        return url, password
+        """使用AES-GCM + 分片密钥重组获取凭证。"""
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        key_part1 = bytes([
+            0xF8, 0xD5, 0x0B, 0x48, 0x0D, 0xC7, 0xE4, 0x41, 0x47, 0xE1, 0x98, 0xDE
+        ])
+        key_part2 = bytes([
+            0xD3, 0x36, 0x12, 0x29, 0x45, 0x02, 0x25, 0x51, 0xBC, 0x8E
+        ])
+        key_part3 = bytes([
+            0xFF, 0x57, 0x52, 0x0B, 0x17, 0x0D, 0xE7, 0xC0, 0x3D, 0xEB, 0x76, 0x2B,
+            0x55, 0xF2, 0xAD, 0xF8, 0x15, 0xF6, 0x4E, 0xDF, 0x4E, 0xA9, 0x65, 0xC8,
+            0x01, 0x63, 0xED, 0xCB, 0x75, 0xE5, 0x65, 0x56
+        ])
+        encrypted_blob_b64 = (
+            "xrOk8r07sRpstrBGB+httG44WDGEHTTt1Ty7XKrzmL17SQRWjX7RYfJ+A/Oh2H76"
+            "TAUbQ0B2OXLXyzyIrPzVOsGXthHBRG3aQGd4EMalWX2eFs0="
+        )
+
+        key = bytearray(len(key_part3))
+        for i in range(len(key_part3)):
+            mixer = key_part1[i % len(key_part1)] if i < len(key_part1) else key_part2[i % len(key_part2)]
+            key[i] = key_part3[i] ^ mixer
+
+        blob = base64.b64decode(encrypted_blob_b64)
+        nonce, ciphertext = blob[:12], blob[12:]
+        payload = AESGCM(bytes(key)).decrypt(nonce, ciphertext, b"lanzou-v2")
+        data = json.loads(payload.decode("utf-8"))
+        return data["u"], data["p"]
     
     def _get_real_download_url_by_browser(self, file_link):
         """浏览器路径（临时兜底）。"""
@@ -235,7 +238,7 @@ class OptimizedLanzouDownloader:
                         for element in elements:
                             href = element.attr('href')
                             if href and ('developer-oss' in href or 'lanzoug.com' in href or 'downserver' in href):
-                                print(f"浏览器兜底提链成功: {href}")
+                                print(f"浏览器兜底提链成功: {self._mask_url(href)}")
                                 return href
                     except Exception:
                         continue
@@ -410,7 +413,7 @@ class OptimizedLanzouDownloader:
         if not file_link:
             return None
 
-        print(f"正在获取文件的真实下载链接: {file_link}")
+        print(f"正在获取文件的真实下载链接: {self._mask_url(file_link)}")
         try:
             common_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
@@ -528,7 +531,7 @@ class OptimizedLanzouDownloader:
 
             real_url = f"{dom}/file/{path}&toolsdown"
             print("requests主路径提链成功")
-            print(f"找到真实下载链接: {real_url}")
+            print(f"找到真实下载链接: {self._mask_url(real_url)}")
             return real_url
         except Exception as e:
             print(f"requests链路获取真实下载链接失败: {e}")
@@ -887,7 +890,7 @@ class OptimizedLanzouDownloader:
             return {"origin": origin, "fid": fid, "uid": uid, "t": t_val, "k": k_val}
 
         try:
-            print(f"正在访问链接: {url}")
+            print(f"正在访问链接: {self._mask_url(url)}")
             session = requests.Session()
             session.trust_env = False
             common_headers = {

@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lanzou.manga.downloader.data.AppContainer
+import com.lanzou.manga.downloader.data.model.LanzouFile
+import com.lanzou.manga.downloader.domain.usecase.DownloadSelectedUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +15,8 @@ import kotlinx.coroutines.launch
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val container = AppContainer(app)
-    private val repo = container.repo
-    private val downloader = container.downloader
+    private val fetchFilesUseCase = container.fetchFilesUseCase
+    private val downloadSelectedUseCase = container.downloadSelectedUseCase
     private val historyStore = container.historyStore
 
     init {
@@ -29,7 +31,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _state.value = _state.value.copy(status = UiMessages.FETCHING_LIST, isLoadingList = true)
-                val files = repo.fetchFiles()
+                val files = fetchFilesUseCase()
                 _state.value = _state.value.copy(
                     files = files,
                     selectedIndices = emptySet(),
@@ -103,35 +105,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _state.value = _state.value.copy(isDownloading = true)
 
             try {
-                val total = selected.size
-                var successCount = 0
-                var failCount = 0
-                val downloadedNow = _state.value.downloadedNames.toMutableSet()
-                val selectedNow = _state.value.selectedIndices.toMutableSet()
-
-                selected.forEachIndexed { i, file ->
-                    val ok = processSingleFile(
-                        file = file,
-                        order = i + 1,
-                        total = total
-                    )
-                    if (ok) {
-                        successCount += 1
-                        downloadedNow.add(file.name)
-                        selectedNow.remove(file.index)
-                        _state.value = _state.value.copy(status = UiMessages.downloadDone(i + 1, total, file.name))
-                    } else {
-                        failCount += 1
-                        _state.value = _state.value.copy(status = UiMessages.downloadFailed(i + 1, total, file.name))
+                val result = downloadSelectedUseCase.execute(
+                    params = DownloadSelectedUseCase.Params(
+                        context = getApplication(),
+                        selectedFiles = selected,
+                        downloadedNames = _state.value.downloadedNames,
+                        selectedIndices = _state.value.selectedIndices
+                    ),
+                    onStatus = { msg ->
+                        _state.value = _state.value.copy(status = msg)
                     }
-                }
+                )
                 _state.value = _state.value.copy(
                     isDownloading = false,
-                    downloadedNames = downloadedNow,
-                    selectedIndices = selectedNow,
-                    status = UiMessages.summary(successCount, failCount, total)
-                )
-                historyStore.saveDownloadedNames(downloadedNow)
+                    downloadedNames = result.downloadedNames,
+                    selectedIndices = result.selectedIndices,
+                    status = UiMessages.summary(result.successCount, result.failCount, result.total)
+                ) 
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isDownloading = false,
@@ -141,61 +131,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun selectedUndownloadedFiles() = _state.value.files.filter { f ->
+    private fun selectedUndownloadedFiles(): List<LanzouFile> = _state.value.files.filter { f ->
         _state.value.selectedIndices.contains(f.index) && !_state.value.downloadedNames.contains(f.name)
     }
-
-    private fun processSingleFile(
-        file: com.lanzou.manga.downloader.data.model.LanzouFile,
-        order: Int,
-        total: Int
-    ): Boolean {
-        val real = repo.resolveRealUrl(file.link)
-        if (real.isNullOrBlank()) {
-            return false
-        }
-
-        val firstTryOk = downloadWithProgress(
-            url = real,
-            fileName = file.name,
-            order = order,
-            total = total,
-            retry = false
-        )
-        if (firstTryOk) return true
-
-        val fresh = repo.resolveRealUrl(file.link) ?: return false
-        return downloadWithProgress(
-            url = fresh,
-            fileName = file.name,
-            order = order,
-            total = total,
-            retry = true
-        )
-    }
-
-    private fun downloadWithProgress(
-        url: String,
-        fileName: String,
-        order: Int,
-        total: Int,
-        retry: Boolean
-    ): Boolean {
-        val result = downloader.downloadToPublicDownloads(
-            context = getApplication(),
-            url = url,
-            fileName = fileName,
-            subDir = "MangaDownload"
-        ) { p ->
-            _state.value = _state.value.copy(
-                status = if (retry) {
-                    UiMessages.redownloading(order, total, p, fileName)
-                } else {
-                    UiMessages.downloading(order, total, p, fileName)
-                }
-            )
-        }
-        return result.first
-    }
-
 }

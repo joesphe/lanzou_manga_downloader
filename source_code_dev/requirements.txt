@@ -1,0 +1,4 @@
+# Development runtime dependencies
+requests==2.31.0
+DrissionPage==4.1.1.2
+
