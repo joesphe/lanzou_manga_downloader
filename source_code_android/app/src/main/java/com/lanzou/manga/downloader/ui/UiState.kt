@@ -1,10 +1,8 @@
 package com.lanzou.manga.downloader.ui
 
-import com.lanzou.manga.downloader.data.model.LanzouFile
-
 data class UiState(
     val status: String = UiMessages.READY,
-    val files: List<LanzouFile> = emptyList(),
+    val files: List<UiFileItem> = emptyList(),
     val selectedIndices: Set<Int> = emptySet(),
     val isLoadingList: Boolean = false,
     val isDownloading: Boolean = false,

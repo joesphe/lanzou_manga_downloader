@@ -1,9 +1,7 @@
 package com.lanzou.manga.downloader.ui
 
-import com.lanzou.manga.downloader.data.model.LanzouFile
-
 object UiSelectors {
-    fun filteredFiles(state: UiState): List<LanzouFile> {
+    fun filteredFiles(state: UiState): List<UiFileItem> {
         val q = state.searchQuery.trim()
         return state.files.filter { f ->
             (q.isBlank() || f.name.contains(q, ignoreCase = true)) &&

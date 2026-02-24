@@ -18,6 +18,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val fetchFilesUseCase = container.fetchFilesUseCase
     private val downloadSelectedUseCase = container.downloadSelectedUseCase
     private val historyStore = container.historyStore
+    private var rawFilesByIndex: Map<Int, LanzouFile> = emptyMap()
 
     init {
         // Clear stale history on startup so files remain selectable after app restart.
@@ -32,8 +33,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _state.value = _state.value.copy(status = UiMessages.FETCHING_LIST, isLoadingList = true)
                 val files = fetchFilesUseCase()
+                rawFilesByIndex = files.associateBy { it.index }
                 _state.value = _state.value.copy(
-                    files = files,
+                    files = files.map { it.toUiFileItem() },
                     selectedIndices = emptySet(),
                     status = UiMessages.listUpdated(files.size),
                     isLoadingList = false
@@ -131,7 +133,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun selectedUndownloadedFiles(): List<LanzouFile> = _state.value.files.filter { f ->
-        _state.value.selectedIndices.contains(f.index) && !_state.value.downloadedNames.contains(f.name)
-    }
+    private fun selectedUndownloadedFiles(): List<LanzouFile> = _state.value.files
+        .asSequence()
+        .filter { f ->
+            _state.value.selectedIndices.contains(f.index) && !_state.value.downloadedNames.contains(f.name)
+        }
+        .mapNotNull { f -> rawFilesByIndex[f.index] }
+        .toList()
+
+    private fun LanzouFile.toUiFileItem(): UiFileItem = UiFileItem(
+        index = index,
+        name = name,
+        size = size,
+        time = time
+    )
 }
