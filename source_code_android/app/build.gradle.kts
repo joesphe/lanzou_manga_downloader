@@ -14,8 +14,8 @@ android {
         applicationId = "com.lanzou.manga.downloader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "6.0.0-alpha01"
+        versionCode = 2
+        versionName = "v2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

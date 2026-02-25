@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
                     onToggleUseCustomSource = vm::toggleUseCustomSource,
                     onUpdateCustomUrl = vm::updateCustomUrl,
                     onUpdateCustomPassword = vm::updateCustomPassword,
+                    onToggleAllowRedownloadAfterDownload = vm::toggleAllowRedownloadAfterDownload,
                     onUpdateSearchQuery = vm::updateSearchQuery,
                     onSelectAll = vm::selectAll,
                     onInvertSelection = vm::invertSelection,
@@ -42,7 +43,8 @@ class MainActivity : ComponentActivity() {
                     onToggleOnlyUndownloaded = vm::toggleOnlyUndownloaded,
                     onDownloadSelected = vm::downloadSelected,
                     onOpenDownloadDirectory = ::openDownloadDirectory,
-                    onToggleSelection = vm::toggleSelection
+                    onToggleSelection = vm::toggleSelection,
+                    version = BuildConfig.VERSION_NAME
                 )
             }
         }

@@ -13,7 +13,8 @@ data class ParsedRow(
     val id: String,
     val name: String,
     val size: String,
-    val time: String
+    val time: String,
+    val ajaxFileId: String?
 )
 
 class ListPageParser {
@@ -50,11 +51,35 @@ class ListPageParser {
                     id = id,
                     name = row.optString("name_all", "unknown"),
                     size = row.optString("size", ""),
-                    time = row.optString("time", "")
+                    time = row.optString("time", ""),
+                    ajaxFileId = extractAjaxFileId(row)
                 )
             )
         }
         return rows
     }
-}
 
+    private fun extractAjaxFileId(row: org.json.JSONObject): String? {
+        val preferredKeys = listOf("file_id", "fid", "f_id", "down_id", "id")
+        for (key in preferredKeys) {
+            val value = row.optString(key, "").trim()
+            if (value.isNotBlank() && value.all { it.isDigit() } && value != "0") {
+                return value
+            }
+        }
+        val keys = row.keys()
+        while (keys.hasNext()) {
+            val key = keys.next().orEmpty()
+            val value = row.optString(key, "").trim()
+            val keyLower = key.lowercase()
+            if ((keyLower.contains("id") || keyLower == "file" || keyLower == "fid") &&
+                value.isNotBlank() &&
+                value.all { it.isDigit() } &&
+                value != "0"
+            ) {
+                return value
+            }
+        }
+        return null
+    }
+}

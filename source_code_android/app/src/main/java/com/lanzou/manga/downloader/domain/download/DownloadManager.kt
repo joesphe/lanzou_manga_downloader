@@ -157,10 +157,11 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
         subDir: String,
         onProgress: (Int) -> Unit
     ): Pair<Boolean, String> {
+        val safeName = sanitizeFilename(fileName)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
             val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.DISPLAY_NAME, safeName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
                 put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$subDir")
                 put(MediaStore.Downloads.IS_PENDING, 1)
@@ -173,7 +174,7 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
                     values.clear()
                     values.put(MediaStore.Downloads.IS_PENDING, 0)
                     resolver.update(uri, values, null, null)
-                    true to "content://downloads/public_downloads (${Environment.DIRECTORY_DOWNLOADS}/$subDir/$fileName)"
+                    true to "content://downloads/public_downloads (${Environment.DIRECTORY_DOWNLOADS}/$subDir/$safeName)"
                 } else {
                     resolver.delete(uri, null, null)
                     false to "下载失败"
@@ -192,9 +193,16 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
         if (!dir.exists() && !dir.mkdirs()) {
             return false to "创建下载目录失败: ${dir.absolutePath}"
         }
-        val outFile = File(dir, fileName)
+        val outFile = File(dir, safeName)
         val ok = download(url, outFile, onProgress)
         return ok to outFile.absolutePath
+    }
+
+    private fun sanitizeFilename(raw: String): String {
+        var name = raw.replace(Regex("[<>:\"/\\\\|?*\\u0000-\\u001F]"), "_")
+        name = name.trim().trim('.')
+        if (name.isBlank()) return "unnamed_file"
+        return name
     }
 
     private fun saveToFile(total: Long, input: java.io.InputStream, output: File, onProgress: (Int) -> Unit): Boolean {

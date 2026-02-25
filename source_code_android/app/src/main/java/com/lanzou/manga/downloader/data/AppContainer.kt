@@ -4,6 +4,7 @@ import android.content.Context
 import com.lanzou.manga.downloader.data.config.CredentialsProvider
 import com.lanzou.manga.downloader.data.config.CredentialsSource
 import com.lanzou.manga.downloader.data.network.OkHttpProvider
+import com.lanzou.manga.downloader.data.prefs.AppSettingsStore
 import com.lanzou.manga.downloader.data.prefs.DownloadHistoryStore
 import com.lanzou.manga.downloader.data.repo.FilesRepository
 import com.lanzou.manga.downloader.data.repo.LanzouRepository
@@ -19,6 +20,7 @@ class AppContainer(context: Context) {
     private val credentialsSource: CredentialsSource = CredentialsProvider
     val downloader: FileDownloader = DownloadManager(client)
     val historyStore = DownloadHistoryStore(context)
+    val settingsStore = AppSettingsStore(context)
 
     val repo: FilesRepository = LanzouRepository(client, resolver).apply {
         val (defaultUrl, defaultPassword) = credentialsSource.getDefaultUrlAndPassword()

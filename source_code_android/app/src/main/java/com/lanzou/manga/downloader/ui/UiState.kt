@@ -11,6 +11,7 @@ data class UiState(
     val useCustomSource: Boolean = false,
     val customUrl: String = "",
     val customPassword: String = "",
+    val allowRedownloadAfterDownload: Boolean = false,
     val searchQuery: String = "",
     val downloadedNames: Set<String> = emptySet(),
     val onlyUndownloaded: Boolean = false

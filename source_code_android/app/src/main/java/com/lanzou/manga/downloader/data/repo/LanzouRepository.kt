@@ -35,7 +35,7 @@ class LanzouRepository(
         activePassword = password
     }
 
-    override fun fetchFiles(): List<LanzouFile> {
+    override fun fetchFiles(onBatch: (List<LanzouFile>) -> Unit): List<LanzouFile> {
         if (activeUrl.isBlank()) {
             Log.e("LanzouRepo", "activeUrl is blank")
             return emptyList()
@@ -80,20 +80,25 @@ class LanzouRepository(
             if (arr == null || count == 0) break
 
             val rows = pageParser.parseRows(arr)
+            val pageBatch = mutableListOf<LanzouFile>()
             for (row in rows) {
                 if (seen.contains(row.id)) continue
                 seen.add(row.id)
                 val link = if (row.id.startsWith("http")) row.id else "$origin/${row.id.trimStart('/')}"
-                allFiles.add(
-                    LanzouFile(
-                        index = index,
-                        name = row.name,
-                        size = row.size,
-                        time = row.time,
-                        link = link
-                    )
+                val file = LanzouFile(
+                    index = index,
+                    name = row.name,
+                    size = row.size,
+                    time = row.time,
+                    link = link,
+                    ajaxFileId = row.ajaxFileId
                 )
+                allFiles.add(file)
+                pageBatch.add(file)
                 index += 1
+            }
+            if (pageBatch.isNotEmpty()) {
+                onBatch(pageBatch)
             }
 
             if (count < 50) break
@@ -103,7 +108,8 @@ class LanzouRepository(
         return allFiles
     }
 
-    override fun resolveRealUrl(link: String): String? = resolver.resolveRealUrl(link)
+    override fun resolveRealUrl(link: String, ajaxFileId: String?): String? =
+        resolver.resolveRealUrl(link, ajaxFileId)
 
     private fun fetchPageWithRetry(
         ajaxUrl: String,

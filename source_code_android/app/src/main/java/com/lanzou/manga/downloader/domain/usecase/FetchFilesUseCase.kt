@@ -6,6 +6,6 @@ import com.lanzou.manga.downloader.data.repo.FilesRepository
 class FetchFilesUseCase(
     private val repository: FilesRepository
 ) {
-    operator fun invoke(): List<LanzouFile> = repository.fetchFiles()
+    operator fun invoke(onBatch: (List<LanzouFile>) -> Unit = {}): List<LanzouFile> =
+        repository.fetchFiles(onBatch = onBatch)
 }
-

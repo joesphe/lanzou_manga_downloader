@@ -2,6 +2,7 @@ package com.lanzou.manga.downloader.domain.resolver
 
 import android.util.Log
 import com.lanzou.manga.downloader.data.network.AppHttp
+import com.lanzou.manga.downloader.data.network.OkHttpProvider
 import com.lanzou.manga.downloader.domain.challenge.AcwSolver
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
@@ -10,19 +11,18 @@ import org.json.JSONObject
 
 class LanzouResolver(private val client: OkHttpClient) {
 
-    fun resolveRealUrl(fileLink: String): String? {
+    fun resolveRealUrl(fileLink: String, ajaxFileId: String? = null): String? {
         val commonUa = AppHttp.UA_CHROME
-
-        val page = getText(fileLink, mapOf("User-Agent" to commonUa)) ?: return null
+        val page = requestTextWithChallenge(fileLink, commonUa) ?: return null
         val p = java.net.URL(fileLink)
         val origin = "${p.protocol}://${p.host}"
 
         val fnCandidate = extractFnUrl(page) ?: return null
-        val fnUrl = java.net.URL(java.net.URL(origin + "/"), fnCandidate).toString()
+        val fnUrl = java.net.URL(java.net.URL("$origin/"), fnCandidate).toString()
         var params: FnParams? = null
         repeat(2) { idx ->
-            val fnHtml = getText(fnUrl, mapOf("User-Agent" to commonUa, "Referer" to fileLink)) ?: return@repeat
-            params = extractParamsFromFnScripts(fnHtml, origin, fnUrl, commonUa)
+            val fnHtml = requestTextWithChallenge(fnUrl, commonUa, fileLink) ?: return@repeat
+            params = extractParamsFromFnScripts(fnHtml, origin, fnUrl, commonUa, ajaxFileId)
             if (params?.isComplete() == true) return@repeat
             if (idx == 0) {
                 Log.d("LanzouResolver", "fn params incomplete, retry once")
@@ -68,24 +68,43 @@ class LanzouResolver(private val client: OkHttpClient) {
             }
             val dom = json.optString("dom", "").trim().trimEnd('/')
             val path = json.optString("url", "").trim()
-            if (dom.isNullOrBlank() || path.isNullOrBlank()) return null
+            if (dom.isBlank() || path.isBlank()) return null
             Log.d("LanzouResolver", "resolve success fileId=$fileId")
             return "$dom/file/$path&toolsdown"
         }
     }
 
-    fun solveChallengeIfNeeded(html: String): String? {
-        if (!AcwSolver.hasChallenge(html)) return null
-        return AcwSolver.solveAcwScV2(html)
-    }
+    private fun requestTextWithChallenge(
+        url: String,
+        userAgent: String,
+        referer: String? = null
+    ): String? {
+        val host = runCatching { java.net.URL(url).host }.getOrNull() ?: return null
+        OkHttpProvider.upsertCookie(host, "codelen", "1")
 
-    private fun getText(url: String, headers: Map<String, String>): String? {
-        val reqBuilder = Request.Builder().url(url).get()
-        headers.forEach { (k, v) -> reqBuilder.addHeader(k, v) }
-        client.newCall(reqBuilder.build()).execute().use { resp ->
-            if (!resp.isSuccessful) return null
-            return resp.body?.string()
+        repeat(2) { round ->
+            val reqBuilder = Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("User-Agent", userAgent)
+                .addHeader("Accept", AppHttp.ACCEPT_HTML)
+            if (!referer.isNullOrBlank()) reqBuilder.addHeader("Referer", referer)
+            val cookieHeader = OkHttpProvider.buildCookieHeader(host)
+            if (cookieHeader.isNotBlank()) reqBuilder.addHeader("Cookie", cookieHeader)
+
+            client.newCall(reqBuilder.build()).execute().use { resp ->
+                if (!resp.isSuccessful) return null
+                val body = resp.body?.string() ?: return null
+                if (!AcwSolver.hasChallenge(body)) return body
+                val token = AcwSolver.solveAcwScV2(body)
+                if (token.isNullOrBlank()) return null
+                OkHttpProvider.upsertCookie(host, "acw_sc__v2", token)
+                if (round == 0) {
+                    Log.d("LanzouResolver", "challenge detected and solved, retrying page")
+                }
+            }
         }
+        return null
     }
 
     private fun extractFnUrl(html: String): String? {
@@ -95,31 +114,34 @@ class LanzouResolver(private val client: OkHttpClient) {
             .find(html)?.groupValues?.get(1)?.replace("\\/", "/")
     }
 
-    private fun extractParamsFromFnScripts(fnHtml: String, origin: String, fnUrl: String, ua: String): FnParams? {
+    private fun extractParamsFromFnScripts(
+        fnHtml: String,
+        origin: String,
+        fnUrl: String,
+        ua: String,
+        ajaxFileId: String?
+    ): FnParams? {
         var best: FnParams? = null
+        if (!ajaxFileId.isNullOrBlank() && ajaxFileId.all { it.isDigit() }) {
+            best = FnParams(fileId = ajaxFileId, ajaxData = null, sign = null)
+        }
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
             .findAll(fnHtml).map { it.groupValues[1] }.toList()
         scripts.forEach {
             extractParamsFromJsText(it)?.let { p ->
                 best = merge(best, p)
-                if (best?.isComplete() == true) {
-                    Log.d("LanzouResolver", "params from inline scripts fileId=${best?.fileId}")
-                    return best
-                }
+                if (best.isComplete()) return best
             }
         }
 
         val srcs = Regex("<script[^>]+src=['\"]([^'\"]+)['\"]", RegexOption.IGNORE_CASE)
             .findAll(fnHtml).map { it.groupValues[1] }.toList()
         for (src in srcs.take(12)) {
-            val full = java.net.URL(java.net.URL(origin + "/"), src).toString()
-            val js = getText(full, mapOf("User-Agent" to ua, "Referer" to fnUrl)) ?: continue
+            val full = java.net.URL(java.net.URL("$origin/"), src).toString()
+            val js = requestTextWithChallenge(full, ua, fnUrl) ?: continue
             extractParamsFromJsText(js)?.let { p ->
                 best = merge(best, p)
-                if (best?.isComplete() == true) {
-                    Log.d("LanzouResolver", "params from external scripts fileId=${best?.fileId}")
-                    return best
-                }
+                if (best.isComplete()) return best
             }
         }
         return best
@@ -127,7 +149,8 @@ class LanzouResolver(private val client: OkHttpClient) {
 
     private fun extractParamsFromJsText(text: String): FnParams? {
         val fileId = Regex("ajaxm\\.php\\?file=(\\d{6,})").find(text)?.groupValues?.get(1)
-            ?: Regex("url\\s*:\\s*['\"]/ajaxm\\.php\\?file=['\"]\\s*\\+\\s*(\\d{6,})").find(text)?.groupValues?.get(1)
+            ?: Regex("url\\s*:\\s*['\"]/ajaxm\\.php\\?file=['\"]\\s*\\+\\s*(\\d{6,})")
+                .find(text)?.groupValues?.get(1)
         val ajaxData = Regex("var\\s+ajaxdata\\s*=\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
             ?: Regex("websignkey\\s*[:=]\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
         val sign = Regex("var\\s+wp_sign\\s*=\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
@@ -144,7 +167,7 @@ class LanzouResolver(private val client: OkHttpClient) {
     }
 }
 
-data class FnParams(
+private data class FnParams(
     val fileId: String?,
     val ajaxData: String?,
     val sign: String?

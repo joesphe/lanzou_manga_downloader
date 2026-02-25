@@ -16,7 +16,8 @@ class DownloadSelectedUseCase(
         val context: Context,
         val selectedFiles: List<LanzouFile>,
         val downloadedNames: Set<String>,
-        val selectedIndices: Set<Int>
+        val selectedIndices: Set<Int>,
+        val trackDownloadedNames: Boolean
     )
 
     data class Result(
@@ -48,7 +49,9 @@ class DownloadSelectedUseCase(
             )
             if (ok) {
                 successCount += 1
-                downloadedNow.add(file.name)
+                if (params.trackDownloadedNames) {
+                    downloadedNow.add(file.name)
+                }
                 selectedNow.remove(file.index)
                 onStatus(UiMessages.downloadDone(order, total, file.name))
             } else {
@@ -74,7 +77,7 @@ class DownloadSelectedUseCase(
         total: Int,
         onStatus: (String) -> Unit
     ): Boolean {
-        val real = repository.resolveRealUrl(file.link)
+        val real = repository.resolveRealUrl(file.link, file.ajaxFileId)
         if (real.isNullOrBlank()) return false
 
         val firstTryOk = downloadWithProgress(
@@ -88,7 +91,7 @@ class DownloadSelectedUseCase(
         )
         if (firstTryOk) return true
 
-        val fresh = repository.resolveRealUrl(file.link) ?: return false
+        val fresh = repository.resolveRealUrl(file.link, file.ajaxFileId) ?: return false
         return downloadWithProgress(
             context = context,
             url = fresh,
@@ -126,4 +129,3 @@ class DownloadSelectedUseCase(
         return result.first
     }
 }
-

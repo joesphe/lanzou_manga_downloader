@@ -1,16 +1,35 @@
 package com.lanzou.manga.downloader.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.lanzou.manga.downloader.R
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -26,6 +45,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -34,6 +54,7 @@ fun MainScreen(
     onToggleUseCustomSource: (Boolean) -> Unit,
     onUpdateCustomUrl: (String) -> Unit,
     onUpdateCustomPassword: (String) -> Unit,
+    onToggleAllowRedownloadAfterDownload: (Boolean) -> Unit,
     onUpdateSearchQuery: (String) -> Unit,
     onSelectAll: () -> Unit,
     onInvertSelection: () -> Unit,
@@ -41,39 +62,46 @@ fun MainScreen(
     onToggleOnlyUndownloaded: (Boolean) -> Unit,
     onDownloadSelected: () -> Unit,
     onOpenDownloadDirectory: () -> Unit,
-    onToggleSelection: (Int) -> Unit
+    onToggleSelection: (Int) -> Unit,
+    version: String
 ) {
     val filteredFiles = UiSelectors.filteredFiles(ui)
     val selectableSelectedCount = UiSelectors.selectedUndownloadedCount(ui)
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val showQuickToConfirm = listState.firstVisibleItemIndex > 2 || listState.firstVisibleItemScrollOffset > 360
 
-    Scaffold(
-        topBar = {
-            SmallTopAppBar(title = "蓝奏云下载器")
-        },
-        content = { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SmallTopAppBar(title = "蓝奏云下载器")
+                }
+            },
+            content = { paddingValues ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp),
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         insideMargin = PaddingValues(16.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SuperSwitch(
-                                title = "使用自定义链接",
-                                summary = if (ui.useCustomSource) "当前: 自定义来源" else "当前: 预设来源",
-                                checked = ui.useCustomSource,
-                                onCheckedChange = onToggleUseCustomSource,
-                                enabled = !ui.isLoadingList && !ui.isDownloading,
-                                insideMargin = PaddingValues(0.dp)
-                            )
-
                             if (ui.useCustomSource) {
                                 TextField(
                                     value = ui.customUrl,
@@ -161,7 +189,7 @@ fun MainScreen(
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onDownloadSelected,
-                        enabled = selectableSelectedCount > 0 && !ui.isDownloading && !ui.isLoadingList,
+                        enabled = selectableSelectedCount > 0 && !ui.isDownloading,
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
                         Text(if (ui.isDownloading) "下载中..." else "确认下载 (${selectableSelectedCount})")
@@ -192,46 +220,112 @@ fun MainScreen(
                     }
                 }
 
-                if (filteredFiles.isNotEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            insideMargin = PaddingValues(vertical = 8.dp)
-                        ) {
-                            Column {
-                                filteredFiles.forEach { f ->
-                                    val checked = ui.selectedIndices.contains(f.index)
-                                    val downloaded = ui.downloadedNames.contains(f.name)
-                                    val isEnabled = !ui.isDownloading && !downloaded
+                items(filteredFiles, key = { it.index }) { f ->
+                    val checked = ui.selectedIndices.contains(f.index)
+                    val downloaded = ui.downloadedNames.contains(f.name)
+                    val isEnabled = !ui.isDownloading && !downloaded
 
-                                    SuperCheckbox(
-                                        title = "${f.index}. ${f.name}",
-                                        summary = "大小: ${f.size}  时间: ${f.time}",
-                                        checked = checked,
-                                        onCheckedChange = { onToggleSelection(f.index) },
-                                        enabled = isEnabled,
-                                        endActions = {
-                                            val statusText = when {
-                                                downloaded -> "已下载"
-                                                checked -> "待下载"
-                                                else -> ""
-                                            }
-                                            if (statusText.isNotEmpty()) {
-                                                Text(
-                                                    text = statusText,
-                                                    style = MiuixTheme.textStyles.footnote1,
-                                                    color = if (downloaded) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.primary,
-                                                    modifier = Modifier.padding(end = 8.dp)
-                                                )
-                                            }
-                                        }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        insideMargin = PaddingValues(vertical = 8.dp)
+                    ) {
+                        SuperCheckbox(
+                            title = "${f.index}. ${f.name}",
+                            summary = "大小: ${f.size}  时间: ${f.time}",
+                            checked = checked,
+                            onCheckedChange = { onToggleSelection(f.index) },
+                            enabled = isEnabled,
+                            endActions = {
+                                val statusText = when {
+                                    downloaded -> "已下载"
+                                    checked -> "待下载"
+                                    else -> ""
+                                }
+                                if (statusText.isNotEmpty()) {
+                                    Text(
+                                        text = statusText,
+                                        style = MiuixTheme.textStyles.footnote1,
+                                        color = if (downloaded) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp)
                                     )
                                 }
                             }
+                        )
+                    }
+                }
+                }
+            }
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 8.dp, end = 16.dp)
+                .size(44.dp)
+                .background(
+                    color = Color(0x33FFFFFF),
+                    shape = CircleShape
+                )
+                .clickable { showSettingsDialog = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_settings_24),
+                contentDescription = "Settings",
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        if (showQuickToConfirm) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 24.dp)
+                    .size(44.dp)
+                    .background(
+                        color = Color(0xAA2F4A7A),
+                        shape = CircleShape
+                    )
+                    .clickable {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(1)
                         }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_arrow_up_24),
+                    contentDescription = "Back to confirm",
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+
+    if (showSettingsDialog) {
+        Dialog(onDismissRequest = { showSettingsDialog = false }) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                insideMargin = PaddingValues(16.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SettingsDialogContent(
+                        useThirdPartyLinks = ui.useCustomSource,
+                        allowRedownloadAfterDownload = ui.allowRedownloadAfterDownload,
+                        version = version,
+                        onToggleUseThirdPartyLinks = onToggleUseCustomSource,
+                        onToggleAllowRedownload = onToggleAllowRedownloadAfterDownload
+                    )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { showSettingsDialog = false },
+                        colors = ButtonDefaults.buttonColorsPrimary()
+                    ) {
+                        Text("关闭")
                     }
                 }
             }
         }
-    )
+    }
 }
