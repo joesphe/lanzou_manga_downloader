@@ -104,6 +104,7 @@ lanzou_downloader_gui_prod.py
 *.exe
 *.apk
 backup/
+release/
 
 蓝奏云漫画资源链接.txt
 
@@ -127,3 +128,4 @@ source_code_android/captures/
 source_code_android/build/
 source_code_android/app/build/
 source_code_android/local.properties
+release/
