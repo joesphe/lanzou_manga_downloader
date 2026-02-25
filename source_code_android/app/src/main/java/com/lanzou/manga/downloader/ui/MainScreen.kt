@@ -31,6 +31,9 @@ import top.yukonga.miuix.kmp.utils.PressFeedbackType
 fun MainScreen(
     ui: UiState,
     onFetchFiles: () -> Unit,
+    onToggleUseCustomSource: (Boolean) -> Unit,
+    onUpdateCustomUrl: (String) -> Unit,
+    onUpdateCustomPassword: (String) -> Unit,
     onUpdateSearchQuery: (String) -> Unit,
     onSelectAll: () -> Unit,
     onInvertSelection: () -> Unit,
@@ -62,6 +65,33 @@ fun MainScreen(
                         insideMargin = PaddingValues(16.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SuperSwitch(
+                                title = "使用自定义链接",
+                                summary = if (ui.useCustomSource) "当前: 自定义来源" else "当前: 预设来源",
+                                checked = ui.useCustomSource,
+                                onCheckedChange = onToggleUseCustomSource,
+                                enabled = !ui.isLoadingList && !ui.isDownloading,
+                                insideMargin = PaddingValues(0.dp)
+                            )
+
+                            if (ui.useCustomSource) {
+                                TextField(
+                                    value = ui.customUrl,
+                                    onValueChange = onUpdateCustomUrl,
+                                    label = "自定义蓝奏云链接",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !ui.isLoadingList && !ui.isDownloading
+                                )
+
+                                TextField(
+                                    value = ui.customPassword,
+                                    onValueChange = onUpdateCustomPassword,
+                                    label = "自定义密码（可留空）",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !ui.isLoadingList && !ui.isDownloading
+                                )
+                            }
+
                             Button(
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = onFetchFiles,

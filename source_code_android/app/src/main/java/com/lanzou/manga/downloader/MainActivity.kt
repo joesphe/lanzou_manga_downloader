@@ -32,6 +32,9 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     ui = ui,
                     onFetchFiles = vm::fetchFiles,
+                    onToggleUseCustomSource = vm::toggleUseCustomSource,
+                    onUpdateCustomUrl = vm::updateCustomUrl,
+                    onUpdateCustomPassword = vm::updateCustomPassword,
                     onUpdateSearchQuery = vm::updateSearchQuery,
                     onSelectAll = vm::selectAll,
                     onInvertSelection = vm::invertSelection,

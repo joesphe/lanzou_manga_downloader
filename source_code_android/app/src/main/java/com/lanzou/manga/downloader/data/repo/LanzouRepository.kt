@@ -14,19 +14,36 @@ class LanzouRepository(
     private val apiClient: ListApiClient = ListApiClient(client),
     private val pageParser: ListPageParser = ListPageParser()
 ) : FilesRepository {
-    // TODO: Replace with secure local config strategy.
-    var defaultUrl: String = ""
-    var defaultPassword: String = ""
+    private var presetUrl: String = ""
+    private var presetPassword: String = ""
+    private var activeUrl: String = ""
+    private var activePassword: String = ""
+
+    fun setPreset(url: String, password: String) {
+        presetUrl = url
+        presetPassword = password
+        usePresetSource()
+    }
+
+    override fun usePresetSource() {
+        activeUrl = presetUrl
+        activePassword = presetPassword
+    }
+
+    override fun useCustomSource(url: String, password: String) {
+        activeUrl = url
+        activePassword = password
+    }
 
     override fun fetchFiles(): List<LanzouFile> {
-        if (defaultUrl.isBlank()) {
-            Log.e("LanzouRepo", "defaultUrl is blank")
+        if (activeUrl.isBlank()) {
+            Log.e("LanzouRepo", "activeUrl is blank")
             return emptyList()
         }
-        Log.d("LanzouRepo", "fetchFiles start, pwdLen=${defaultPassword.length}")
+        Log.d("LanzouRepo", "fetchFiles start, pwdLen=${activePassword.length}")
 
-        val pageHtml = apiClient.getPageHtml(defaultUrl) ?: return emptyList()
-        val origin = java.net.URL(defaultUrl).let { "${it.protocol}://${it.host}" }
+        val pageHtml = apiClient.getPageHtml(activeUrl) ?: return emptyList()
+        val origin = java.net.URL(activeUrl).let { "${it.protocol}://${it.host}" }
         val ctx = pageParser.extractContext(pageHtml) ?: run {
             Log.e("LanzouRepo", "context parse failed")
             return emptyList()
@@ -43,7 +60,7 @@ class LanzouRepository(
             val result = fetchPageWithRetry(
                 ajaxUrl = ajaxUrl,
                 origin = origin,
-                referer = defaultUrl,
+                referer = activeUrl,
                 ctx = ctx,
                 page = page,
                 maxAttempts = 6
@@ -130,7 +147,7 @@ class LanzouRepository(
             .add("k", ctx.k)
             .add("up", up.toString())
             .add("ls", ls.toString())
-            .add("pwd", defaultPassword)
+            .add("pwd", activePassword)
             .build()
     }
 }

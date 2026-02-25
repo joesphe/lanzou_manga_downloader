@@ -4,6 +4,8 @@ object UiMessages {
     const val READY = "就绪"
     const val FETCHING_LIST = "正在获取文件列表..."
     const val SELECT_AT_LEAST_ONE = "请先选择至少一个未下载文件"
+    const val CUSTOM_URL_REQUIRED = "请先输入自定义蓝奏云链接"
+    const val CUSTOM_URL_INVALID = "自定义链接格式无效，请输入 http/https 链接"
 
     fun listUpdated(count: Int) = "文件列表已更新: $count 个"
     fun listFailed(reason: String?) = "获取文件列表失败: $reason"

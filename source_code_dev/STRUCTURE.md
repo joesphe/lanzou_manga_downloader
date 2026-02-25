@@ -24,7 +24,10 @@
 
 ## 与核心模块关系
 - 该目录只保留“入口层”，核心逻辑在：
-  - `source_code_common/lanzou_gui_core.py`
+  - `source_code_common/lanzou_gui_core.py`（GUI）
+  - `source_code_common/lanzou_core.py`（核心门面与通用工具）
+  - `source_code_common/lanzou_list_fetcher.py`（列表获取）
+  - `source_code_common/lanzou_download_core.py`（下载与提链）
 
 ## 运行方式
 - 默认入口：

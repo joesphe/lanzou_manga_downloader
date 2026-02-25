@@ -22,8 +22,7 @@ class AppContainer(context: Context) {
 
     val repo: FilesRepository = LanzouRepository(client, resolver).apply {
         val (defaultUrl, defaultPassword) = credentialsSource.getDefaultUrlAndPassword()
-        this.defaultUrl = defaultUrl
-        this.defaultPassword = defaultPassword
+        this.setPreset(defaultUrl, defaultPassword)
     }
 
     val fetchFilesUseCase = FetchFilesUseCase(repo)

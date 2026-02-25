@@ -8,6 +8,9 @@ data class UiState(
     val selectedIndices: Set<Int> = emptySet(),
     val isLoadingList: Boolean = false,
     val isDownloading: Boolean = false,
+    val useCustomSource: Boolean = false,
+    val customUrl: String = "",
+    val customPassword: String = "",
     val searchQuery: String = "",
     val downloadedNames: Set<String> = emptySet(),
     val onlyUndownloaded: Boolean = false

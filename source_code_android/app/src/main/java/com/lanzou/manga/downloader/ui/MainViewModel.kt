@@ -30,6 +30,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun fetchFiles() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (_state.value.useCustomSource) {
+                    val url = _state.value.customUrl.trim()
+                    if (url.isBlank()) {
+                        _state.value = _state.value.copy(status = UiMessages.CUSTOM_URL_REQUIRED, isLoadingList = false)
+                        return@launch
+                    }
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                        _state.value = _state.value.copy(status = UiMessages.CUSTOM_URL_INVALID, isLoadingList = false)
+                        return@launch
+                    }
+                    container.repo.useCustomSource(url = url, password = _state.value.customPassword.trim())
+                } else {
+                    container.repo.usePresetSource()
+                }
+
                 _state.value = _state.value.copy(status = UiMessages.FETCHING_LIST, isLoadingList = true)
                 val files = fetchFilesUseCase()
                 _state.value = _state.value.copy(
@@ -77,6 +92,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateSearchQuery(query: String) {
         _state.value = _state.value.copy(searchQuery = query)
+    }
+
+    fun toggleUseCustomSource(enabled: Boolean) {
+        _state.value = _state.value.copy(useCustomSource = enabled)
+    }
+
+    fun updateCustomUrl(url: String) {
+        _state.value = _state.value.copy(customUrl = url)
+    }
+
+    fun updateCustomPassword(password: String) {
+        _state.value = _state.value.copy(customPassword = password)
     }
 
     fun toggleOnlyUndownloaded(enabled: Boolean) {
