@@ -99,15 +99,48 @@ cd /mnt/d/lanzou_manga_downloader/source_code_android
 gradle wrapper --gradle-version 8.10
 ```
 
-## 6. 构建 APK
+## 6. 构建 APK（dev/prod 变体）
 
 ```bash
 cd /mnt/d/lanzou_manga_downloader/source_code_android
-./gradlew --no-daemon clean assembleDebug
+./gradlew --no-daemon clean assembleDevDebug assembleProdDebug
 ```
 
 产物位置：
 
 ```bash
-ls -lh app/build/outputs/apk/debug/
+ls -lh app/build/outputs/apk/dev/debug/
+ls -lh app/build/outputs/apk/prod/debug/
+```
+
+### 可选：覆盖 dev 默认链接（推荐用于本地联调）
+
+在命令行临时传入：
+
+```bash
+./gradlew --no-daemon assembleDevDebug \
+  -PLANZOU_DEV_URL="https://example.lanzou.com/xxxx" \
+  -PLANZOU_DEV_PASSWORD="your_password"
+```
+
+说明：
+- `dev` 变体使用 `BuildConfig.DEFAULT_SHARE_URL/DEFAULT_SHARE_PASSWORD`
+- `prod` 变体需要私有注入加密参数（源码内不再存放密钥材料）
+
+### prod 私有参数注入（公共仓库推荐做法）
+
+将 `source_code_android/private_credentials.template.properties` 复制到你自己的私有位置，
+并写入以下字段（不要提交到 Git）：
+
+- `LANZOU_PROD_URL`
+- `LANZOU_PROD_PASSWORD`
+
+可通过 `~/.gradle/gradle.properties` 注入（推荐），或命令行 `-P` 注入。
+
+示例（命令行）：
+
+```bash
+./gradlew --no-daemon assembleProdDebug \
+  -PLANZOU_PROD_URL="https://example.lanzou.com/xxxx" \
+  -PLANZOU_PROD_PASSWORD="your_password"
 ```

@@ -1,9 +1,24 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+fun String.asBuildConfigString(): String = "\"" + this.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+val privateCredentials: Properties by lazy {
+    val p = Properties()
+    val f = rootProject.file("private_credentials.properties")
+    if (f.exists()) {
+        f.inputStream().use { p.load(it) }
+    }
+    p
+}
+fun propOrEnv(project: org.gradle.api.Project, name: String, defaultValue: String = ""): String {
+    val fromPrivate = privateCredentials.getProperty(name)
+    return fromPrivate ?: (project.findProperty(name) as String?) ?: System.getenv(name) ?: defaultValue
 }
 
 android {
@@ -20,9 +35,33 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            val devUrl = (project.findProperty("LANZOU_DEV_URL") as String?)
+                ?: "https://gk666.lanzoul.com/b0ebibdib"
+            val devPassword = (project.findProperty("LANZOU_DEV_PASSWORD") as String?) ?: ""
+            buildConfigField("boolean", "USE_OBFUSCATED_CREDENTIALS", "false")
+            buildConfigField("String", "DEFAULT_SHARE_URL", devUrl.asBuildConfigString())
+            buildConfigField("String", "DEFAULT_SHARE_PASSWORD", devPassword.asBuildConfigString())
+        }
+        create("prod") {
+            dimension = "env"
+            val prodUrl = propOrEnv(project, "LANZOU_PROD_URL")
+            val prodPassword = propOrEnv(project, "LANZOU_PROD_PASSWORD")
+            buildConfigField("boolean", "USE_OBFUSCATED_CREDENTIALS", "false")
+            buildConfigField("String", "DEFAULT_SHARE_URL", prodUrl.asBuildConfigString())
+            buildConfigField("String", "DEFAULT_SHARE_PASSWORD", prodPassword.asBuildConfigString())
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

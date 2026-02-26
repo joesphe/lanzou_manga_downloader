@@ -128,4 +128,11 @@ source_code_android/captures/
 source_code_android/build/
 source_code_android/app/build/
 source_code_android/local.properties
+source_code_android/private_credentials.properties
+source_code_android/*.private.properties
+source_code_android/**/*.jks
+source_code_android/**/*.keystore
+source_code_android/**/key.properties
 release/
+蓝奏云漫画资源链接(private).txt
+蓝奏云漫画资源链接(public).txt
