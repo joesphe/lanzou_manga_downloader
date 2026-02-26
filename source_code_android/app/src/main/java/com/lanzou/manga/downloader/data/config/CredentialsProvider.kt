@@ -7,11 +7,7 @@ object CredentialsProvider : CredentialsSource {
         val url = BuildConfig.DEFAULT_SHARE_URL.trim()
         val pwd = BuildConfig.DEFAULT_SHARE_PASSWORD.trim()
         require(url.isNotBlank()) {
-            if (BuildConfig.FLAVOR.contains("prod", ignoreCase = true)) {
-                "prod flavor requires LANZOU_PROD_URL (via private_credentials.properties / -P / env)"
-            } else {
-                "dev flavor requires DEFAULT_SHARE_URL (or LANZOU_DEV_URL) to be configured"
-            }
+            "missing credentials: set LANZOU_PROD_URL/LANZOU_PROD_PASSWORD in source_code_android/private_credentials.properties (or via -P / env)"
         }
         return url to pwd
     }

@@ -26,6 +26,9 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        val prodUrl = propOrEnv(project, "LANZOU_PROD_URL")
+        val prodPassword = propOrEnv(project, "LANZOU_PROD_PASSWORD")
+
         applicationId = "com.lanzou.manga.downloader"
         minSdk = 26
         targetSdk = 36
@@ -33,29 +36,8 @@ android {
         versionName = "v2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    flavorDimensions += "env"
-    productFlavors {
-        create("dev") {
-            dimension = "env"
-            applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
-            val devUrl = (project.findProperty("LANZOU_DEV_URL") as String?)
-                ?: "https://gk666.lanzoul.com/b0ebibdib"
-            val devPassword = (project.findProperty("LANZOU_DEV_PASSWORD") as String?) ?: ""
-            buildConfigField("boolean", "USE_OBFUSCATED_CREDENTIALS", "false")
-            buildConfigField("String", "DEFAULT_SHARE_URL", devUrl.asBuildConfigString())
-            buildConfigField("String", "DEFAULT_SHARE_PASSWORD", devPassword.asBuildConfigString())
-        }
-        create("prod") {
-            dimension = "env"
-            val prodUrl = propOrEnv(project, "LANZOU_PROD_URL")
-            val prodPassword = propOrEnv(project, "LANZOU_PROD_PASSWORD")
-            buildConfigField("boolean", "USE_OBFUSCATED_CREDENTIALS", "false")
-            buildConfigField("String", "DEFAULT_SHARE_URL", prodUrl.asBuildConfigString())
-            buildConfigField("String", "DEFAULT_SHARE_PASSWORD", prodPassword.asBuildConfigString())
-        }
+        buildConfigField("String", "DEFAULT_SHARE_URL", prodUrl.asBuildConfigString())
+        buildConfigField("String", "DEFAULT_SHARE_PASSWORD", prodPassword.asBuildConfigString())
     }
 
     buildTypes {
