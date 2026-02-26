@@ -36,7 +36,8 @@
 ## 环境要求
 
 - Python 3.12+
-- Microsoft Edge 浏览器（用于自动化下载）
+- 网络环境可访问蓝奏云分享页
+- Microsoft Edge 浏览器（可选，仅在 requests 提链异常时用于兜底）
 
 ## 安装依赖
 
@@ -80,15 +81,17 @@ python source_code_dev/lanzou_downloader_gui_dev.py
 
 - Python 3.12+
 - Tkinter (GUI)
-- DrissionPage (网页自动化)
+- requests (主下载链路与主提链链路)
+- DrissionPage (浏览器兜底提链，低频触发)
 - PyInstaller (打包工具)
 
 ## 注意事项
 
-1. 由于使用了浏览器自动化技术，请确保 Microsoft Edge 浏览器已安装
+1. 当前主方法为 `requests` 直连提链 + 直连下载；浏览器仅作为接口异常时的兜底方案
 2. 生产版本使用了代码混淆技术来保护敏感信息
 3. 开发版本需要手动设置环境变量，便于修改和调试
-4. 自动日志功能已被移除，可通过命令行重定向输出到日志文件
+4. 若触发浏览器兜底，请确保 Microsoft Edge 浏览器已安装
+5. 自动日志功能已被移除，可通过命令行重定向输出到日志文件
 
 ## 项目文件说明
 
@@ -153,38 +156,6 @@ tail -f lanzou_downloader.log
 Get-Content lanzou_downloader.log -Wait
 ```
 
-## EXE文件使用说明
-
-项目已提供打包好的EXE文件，已经发布到release
-
-### 运行EXE文件
-
-1. 双击 `lanzou_downloader_gui.exe` 文件即可启动应用
-2. 或在命令行中运行：
-```cmd
-dist\lanzou_downloader_gui.exe
-```
-
-### EXE文件特点
-
-- 独立可执行文件，无需安装Python环境
-- 内置混淆保护的链接和密码
-- 包含所有必要依赖项
-- 文件大小约24MB
-
-## Android APK 使用说明
-
-- Android 工程目录：`source_code_android/`
-- 调试包构建命令（WSL Ubuntu）：
-```bash
-cd /mnt/d/lanzou_manga_downloader/source_code_android
-./gradlew --no-daemon clean assembleDebug
-```
-- APK 默认产物：
-  - `source_code_android/app/build/outputs/apk/debug/app-debug.apk`
-- 发布目录（本仓库）：
-  - `release/apks/`
-  - 当前版本归档：`release/apks/v1.1.0/lanzouMangaDownloader_android_v1.1.0.apk`
 
 ## 版本历史
 
