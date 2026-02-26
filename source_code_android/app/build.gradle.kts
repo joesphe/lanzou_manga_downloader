@@ -32,8 +32,8 @@ android {
         applicationId = "com.lanzou.manga.downloader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "v2.0"
+        versionCode = 3
+        versionName = "v1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEFAULT_SHARE_URL", prodUrl.asBuildConfigString())

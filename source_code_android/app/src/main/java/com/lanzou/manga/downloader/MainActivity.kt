@@ -2,6 +2,7 @@ package com.lanzou.manga.downloader
 
 import android.app.DownloadManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 vm.fetchFiles()
+                vm.checkForUpdates(currentVersion = BuildConfig.VERSION_NAME, silentIfUpToDate = true)
             }
 
             AppTheme {
@@ -44,6 +46,10 @@ class MainActivity : ComponentActivity() {
                     onDownloadSelected = vm::downloadSelected,
                     onOpenDownloadDirectory = ::openDownloadDirectory,
                     onToggleSelection = vm::toggleSelection,
+                    onCheckUpdates = { vm.checkForUpdates(BuildConfig.VERSION_NAME, silentIfUpToDate = false) },
+                    onOpenReleasePage = ::openReleasePage,
+                    onDismissUpdateDialog = vm::dismissUpdateDialog,
+                    onIgnoreUpdateVersion = vm::ignoreCurrentUpdateVersion,
                     version = BuildConfig.VERSION_NAME
                 )
             }
@@ -52,6 +58,13 @@ class MainActivity : ComponentActivity() {
 
     private fun openDownloadDirectory() {
         val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { startActivity(intent) }
+    }
+
+    private fun openReleasePage(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { startActivity(intent) }

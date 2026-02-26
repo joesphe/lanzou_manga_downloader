@@ -21,9 +21,18 @@ class AppSettingsStore(context: Context) {
         prefs.edit().putBoolean(KEY_ALLOW_REDOWNLOAD_AFTER_DOWNLOAD, enabled).apply()
     }
 
+    fun loadIgnoredUpdateVersion(): String? {
+        return prefs.getString(KEY_IGNORED_UPDATE_VERSION, null)
+    }
+
+    fun saveIgnoredUpdateVersion(version: String?) {
+        prefs.edit().putString(KEY_IGNORED_UPDATE_VERSION, version).apply()
+    }
+
     private companion object {
         const val PREFS_NAME = "lanzou_settings_prefs"
         const val KEY_USE_THIRD_PARTY_LINKS = "use_third_party_links"
         const val KEY_ALLOW_REDOWNLOAD_AFTER_DOWNLOAD = "allow_redownload_after_download"
+        const val KEY_IGNORED_UPDATE_VERSION = "ignored_update_version"
     }
 }

@@ -6,19 +6,232 @@
 """
 
 import os
+import re
+import sys
 import threading
 import tkinter as tk
+import webbrowser
 from tkinter import ttk, messagebox, filedialog
+
+import requests
 
 try:
     from source_code_common.lanzou_core import OptimizedLanzouDownloader
 except Exception:
     from lanzou_core import OptimizedLanzouDownloader
+
+
+RELEASES_PAGE_URL = "https://gitee.com/greovity/lanzou_manga_downloader/releases"
+GITEE_LATEST_RELEASE_API = "https://gitee.com/api/v5/repos/greovity/lanzou_manga_downloader/releases/latest"
+GITEE_RELEASES_API = "https://gitee.com/api/v5/repos/greovity/lanzou_manga_downloader/releases"
+APP_VERSION_FALLBACK = "v6.2.0"
+APP_VERSION_FILENAME = "app_version.txt"
+
+
+def _normalize_version_text(raw):
+    if not raw:
+        return None
+    text = str(raw).strip().lower()
+    # 优先匹配带 v 前缀的版本，避免把 x64 误识别为版本号
+    m = re.search(r"(?<![A-Za-z0-9])v\d+(?:[._-]\d+)*(?![A-Za-z0-9])", text, re.I)
+    if m:
+        token = m.group(0)
+    elif re.fullmatch(r"\d+(?:[._-]\d+)*", text):
+        token = text
+    else:
+        return None
+    v = token.lower().replace("_", ".").replace("-", ".")
+    if not v.startswith("v"):
+        v = f"v{v}"
+    return v
+
+
+def _extract_version_candidates(text):
+    if not text:
+        return []
+    s = str(text)
+    out = []
+    seen = set()
+
+    # 优先提取 v1.2 / v1_2_3 这类明确语义版本
+    for m in re.finditer(r"(?<![A-Za-z0-9])v\d+(?:[._-]\d+){1,3}(?![A-Za-z0-9])", s, re.I):
+        n = _normalize_version_text(m.group(0))
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+
+    # 回退到 v7 这类主版本格式
+    if not out:
+        for m in re.finditer(r"(?<![A-Za-z0-9])v\d+(?![A-Za-z0-9])", s, re.I):
+            n = _normalize_version_text(m.group(0))
+            if n and n not in seen:
+                seen.add(n)
+                out.append(n)
+    return out
+
+
+def _version_key(version):
+    normalized = _normalize_version_text(version)
+    if not normalized:
+        return ()
+    body = normalized[1:]
+    parts = []
+    for p in body.split("."):
+        if p.isdigit():
+            parts.append(int(p))
+        else:
+            digits = re.findall(r"\d+", p)
+            parts.append(int(digits[0]) if digits else 0)
+    return tuple(parts)
+
+
+def _is_version_less(current_version, latest_version):
+    a = list(_version_key(current_version))
+    b = list(_version_key(latest_version))
+    if not a or not b:
+        return False
+    n = max(len(a), len(b))
+    a.extend([0] * (n - len(a)))
+    b.extend([0] * (n - len(b)))
+    return tuple(a) < tuple(b)
+
+
+def _detect_current_version():
+    env_version = _normalize_version_text(os.environ.get("LANZOU_APP_VERSION"))
+    if env_version:
+        return env_version
+
+    # 优先从版本文件读取，便于发版时仅修改文本文件
+    try:
+        candidates = []
+        if getattr(sys, "frozen", False):
+            candidates.append(os.path.join(os.path.dirname(sys.executable), APP_VERSION_FILENAME))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        candidates.append(os.path.join(project_root, APP_VERSION_FILENAME))
+        candidates.append(os.path.join(os.getcwd(), APP_VERSION_FILENAME))
+
+        seen = set()
+        for fp in candidates:
+            if not fp or fp in seen:
+                continue
+            seen.add(fp)
+            if not os.path.isfile(fp):
+                continue
+            with open(fp, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+            parsed = _normalize_version_text(text)
+            if parsed:
+                return parsed
+    except Exception:
+        pass
+
+    candidate_names = []
+    try:
+        if getattr(sys, "frozen", False):
+            candidate_names.append(os.path.basename(sys.executable))
+    except Exception:
+        pass
+    candidate_names.append(os.path.basename(__file__))
+
+    for name in candidate_names:
+        parsed = _normalize_version_text(name)
+        if parsed:
+            return parsed
+    return APP_VERSION_FALLBACK
+
+
+class _UpdateChecker:
+    def _extract_version_from_release(self, release_obj):
+        if not isinstance(release_obj, dict):
+            return None
+        candidates = []
+        for key in ("tag_name", "name", "tag"):
+            candidates.extend(_extract_version_candidates(release_obj.get(key)))
+
+        assets = release_obj.get("assets")
+        if isinstance(assets, list):
+            for asset in assets:
+                if not isinstance(asset, dict):
+                    continue
+                candidates.extend(_extract_version_candidates(asset.get("name")))
+                candidates.extend(_extract_version_candidates(asset.get("browser_download_url")))
+
+        if not candidates:
+            return None
+        best = candidates[0]
+        for v in candidates[1:]:
+            if _is_version_less(best, v):
+                best = v
+        return best
+
+    def _extract_release_url(self, release_obj):
+        if not isinstance(release_obj, dict):
+            return RELEASES_PAGE_URL
+        for key in ("html_url", "url"):
+            val = release_obj.get(key)
+            if isinstance(val, str) and val.startswith("http"):
+                return val
+        tag_name = release_obj.get("tag_name")
+        if tag_name:
+            return f"{RELEASES_PAGE_URL}/tag/{tag_name}"
+        return RELEASES_PAGE_URL
+
+    def fetch_latest_release(self, timeout=8):
+        # 1) 首选官方 latest API
+        try:
+            resp = requests.get(GITEE_LATEST_RELEASE_API, timeout=timeout)
+            resp.raise_for_status()
+            obj = resp.json()
+            ver = self._extract_version_from_release(obj)
+            if ver:
+                return ver, self._extract_release_url(obj)
+        except Exception:
+            pass
+
+        # 2) 回退到 releases 列表 API，按语义版本取最大值
+        try:
+            resp = requests.get(f"{GITEE_RELEASES_API}?page=1&per_page=30", timeout=timeout)
+            resp.raise_for_status()
+            arr = resp.json()
+            if isinstance(arr, list):
+                best_ver = None
+                best_url = RELEASES_PAGE_URL
+                for item in arr:
+                    ver = self._extract_version_from_release(item)
+                    if not ver:
+                        continue
+                    if best_ver is None or _is_version_less(best_ver, ver):
+                        best_ver = ver
+                        best_url = self._extract_release_url(item)
+                if best_ver:
+                    return best_ver, best_url
+        except Exception:
+            pass
+
+        # 3) 最后回退 HTML 页正则提取
+        try:
+            resp = requests.get(RELEASES_PAGE_URL, timeout=timeout)
+            resp.raise_for_status()
+            tags = re.findall(r"/releases/tag/(v?\d+(?:[._-]\d+)*)", resp.text, re.I)
+            versions = [_normalize_version_text(t) for t in tags]
+            versions = [v for v in versions if v]
+            if versions:
+                best_ver = versions[0]
+                for v in versions[1:]:
+                    if _is_version_less(best_ver, v):
+                        best_ver = v
+                return best_ver, f"{RELEASES_PAGE_URL}/tag/{best_ver}"
+        except Exception:
+            pass
+
+        return None, RELEASES_PAGE_URL
+
 # 以下是GUI部分的代码（优化布局并添加用户提示）
 class LanzouDownloaderGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("蓝奏云下载器")
+        self.current_version = _detect_current_version()
+        self.root.title(f"蓝奏云下载器 {self.current_version}")
         self.root.geometry("1200x800")
         
         # 初始化下载器实例
@@ -36,6 +249,8 @@ class LanzouDownloaderGUI:
         
         # 创建界面
         self.setup_gui()
+        # 启动后自动检查更新（静默：仅发现新版本时提示）
+        self.root.after(600, lambda: self.check_updates(silent_if_latest=True))
         # 启动后自动获取文件列表
         self.root.after(100, self.auto_refresh_files_on_start)
         
@@ -94,6 +309,13 @@ class LanzouDownloaderGUI:
             command=self.reset_to_default_link
         )
         self.reset_link_btn.grid(row=1, column=4, sticky=tk.E, pady=(0, 6))
+
+        self.check_update_btn = ttk.Button(
+            control_frame,
+            text="检查更新",
+            command=lambda: self.check_updates(silent_if_latest=False),
+        )
+        self.check_update_btn.grid(row=0, column=5, sticky=tk.E, pady=(0, 6))
         
         # 获取文件列表按钮
         self.refresh_btn = ttk.Button(control_frame, text="获取文件列表", command=self.manual_refresh_files)
@@ -331,6 +553,32 @@ class LanzouDownloaderGUI:
         self.downloader.default_password = self.default_password
         self.current_link_var.set("当前链接: 默认预设链接")
         self.refresh_files(show_popup=True)
+
+    def check_updates(self, silent_if_latest=True):
+        """检查是否有可用更新。"""
+        def _worker():
+            checker = _UpdateChecker()
+            latest_version, release_url = checker.fetch_latest_release()
+
+            def _notify():
+                if not latest_version:
+                    if not silent_if_latest:
+                        messagebox.showwarning("检查更新", "无法获取最新版本信息，请稍后重试。")
+                    return
+
+                if _is_version_less(self.current_version, latest_version):
+                    should_open = messagebox.askyesno(
+                        "发现新版本",
+                        f"当前版本: {self.current_version}\n最新版本: {latest_version}\n\n是否打开发布页？"
+                    )
+                    if should_open:
+                        webbrowser.open(release_url or RELEASES_PAGE_URL)
+                elif not silent_if_latest:
+                    messagebox.showinfo("检查更新", f"当前已是最新版本（{self.current_version}）。")
+
+            self.root.after(0, _notify)
+
+        threading.Thread(target=_worker, daemon=True).start()
     
     def select_files(self):
         """选择要下载的文件"""

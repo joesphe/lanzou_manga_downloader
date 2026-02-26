@@ -63,6 +63,10 @@ fun MainScreen(
     onDownloadSelected: () -> Unit,
     onOpenDownloadDirectory: () -> Unit,
     onToggleSelection: (Int) -> Unit,
+    onCheckUpdates: () -> Unit,
+    onOpenReleasePage: (String) -> Unit,
+    onDismissUpdateDialog: () -> Unit,
+    onIgnoreUpdateVersion: () -> Unit,
     version: String
 ) {
     val filteredFiles = UiSelectors.filteredFiles(ui)
@@ -313,9 +317,14 @@ fun MainScreen(
                     SettingsDialogContent(
                         useThirdPartyLinks = ui.useCustomSource,
                         allowRedownloadAfterDownload = ui.allowRedownloadAfterDownload,
+                        isCheckingUpdate = ui.isCheckingUpdate,
+                        latestAndroidVersion = ui.latestAndroidVersion,
+                        hasUpdate = ui.hasUpdate,
                         version = version,
                         onToggleUseThirdPartyLinks = onToggleUseCustomSource,
-                        onToggleAllowRedownload = onToggleAllowRedownloadAfterDownload
+                        onToggleAllowRedownload = onToggleAllowRedownloadAfterDownload,
+                        onCheckUpdates = onCheckUpdates,
+                        onOpenReleasePage = { onOpenReleasePage(ui.updateUrl) }
                     )
                     Button(
                         modifier = Modifier.fillMaxWidth(),
@@ -323,6 +332,53 @@ fun MainScreen(
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
                         Text("关闭")
+                    }
+                }
+            }
+        }
+    }
+
+    if (ui.showUpdateDialog && ui.hasUpdate) {
+        Dialog(onDismissRequest = onDismissUpdateDialog) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                insideMargin = PaddingValues(16.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "发现新版本",
+                        style = MiuixTheme.textStyles.title3,
+                        color = MiuixTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "当前版本: $version\n最新版本: ${ui.latestAndroidVersion ?: "未知"}",
+                        style = MiuixTheme.textStyles.body2
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = onDismissUpdateDialog,
+                            colors = ButtonDefaults.buttonColors()
+                        ) {
+                            Text("稍后再说")
+                        }
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onDismissUpdateDialog()
+                                onOpenReleasePage(ui.updateUrl)
+                            },
+                            colors = ButtonDefaults.buttonColorsPrimary()
+                        ) {
+                            Text("去更新")
+                        }
+                    }
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onIgnoreUpdateVersion,
+                        colors = ButtonDefaults.buttonColors()
+                    ) {
+                        Text("忽略此版本")
                     }
                 }
             }

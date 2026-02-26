@@ -14,5 +14,10 @@ data class UiState(
     val allowRedownloadAfterDownload: Boolean = false,
     val searchQuery: String = "",
     val downloadedNames: Set<String> = emptySet(),
-    val onlyUndownloaded: Boolean = false
+    val onlyUndownloaded: Boolean = false,
+    val isCheckingUpdate: Boolean = false,
+    val latestAndroidVersion: String? = null,
+    val hasUpdate: Boolean = false,
+    val updateUrl: String = "https://gitee.com/greovity/lanzou_manga_downloader/releases",
+    val showUpdateDialog: Boolean = false
 )

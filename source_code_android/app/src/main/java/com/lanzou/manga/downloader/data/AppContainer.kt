@@ -8,6 +8,7 @@ import com.lanzou.manga.downloader.data.prefs.AppSettingsStore
 import com.lanzou.manga.downloader.data.prefs.DownloadHistoryStore
 import com.lanzou.manga.downloader.data.repo.FilesRepository
 import com.lanzou.manga.downloader.data.repo.LanzouRepository
+import com.lanzou.manga.downloader.data.repo.ReleaseUpdateChecker
 import com.lanzou.manga.downloader.domain.download.FileDownloader
 import com.lanzou.manga.downloader.domain.download.DownloadManager
 import com.lanzou.manga.downloader.domain.resolver.LanzouResolver
@@ -26,6 +27,7 @@ class AppContainer(context: Context) {
         val (defaultUrl, defaultPassword) = credentialsSource.getDefaultUrlAndPassword()
         this.setPreset(defaultUrl, defaultPassword)
     }
+    val updateChecker = ReleaseUpdateChecker(client)
 
     val fetchFilesUseCase = FetchFilesUseCase(repo)
     val downloadSelectedUseCase = DownloadSelectedUseCase(repo, downloader, historyStore)

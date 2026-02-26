@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.extra.SuperSwitch
@@ -16,9 +18,14 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun SettingsDialogContent(
     useThirdPartyLinks: Boolean,
     allowRedownloadAfterDownload: Boolean,
+    isCheckingUpdate: Boolean,
+    latestAndroidVersion: String?,
+    hasUpdate: Boolean,
     version: String,
     onToggleUseThirdPartyLinks: (Boolean) -> Unit,
-    onToggleAllowRedownload: (Boolean) -> Unit
+    onToggleAllowRedownload: (Boolean) -> Unit,
+    onCheckUpdates: () -> Unit,
+    onOpenReleasePage: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -75,6 +82,37 @@ fun SettingsDialogContent(
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
+
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onCheckUpdates,
+                    colors = ButtonDefaults.buttonColors(),
+                    enabled = !isCheckingUpdate
+                ) {
+                    Text(if (isCheckingUpdate) "检查中..." else "检查更新")
+                }
+
+                if (latestAndroidVersion != null) {
+                    Text(
+                        text = if (hasUpdate) {
+                            "发现新版本: $latestAndroidVersion"
+                        } else {
+                            "最新版本: $latestAndroidVersion"
+                        },
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+
+                if (hasUpdate) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onOpenReleasePage,
+                        colors = ButtonDefaults.buttonColorsPrimary()
+                    ) {
+                        Text("打开发布页")
+                    }
+                }
             }
         }
     }

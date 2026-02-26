@@ -18,16 +18,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val container = AppContainer(app)
     private val fetchFilesUseCase = container.fetchFilesUseCase
     private val downloadSelectedUseCase = container.downloadSelectedUseCase
+    private val updateChecker = container.updateChecker
     private val historyStore = container.historyStore
     private val settingsStore = container.settingsStore
     private val effectiveAllowRedownloadAfterDownload = settingsStore.loadAllowRedownloadAfterDownload()
     private val effectiveUseThirdPartyLinks = settingsStore.loadUseThirdPartyLinks()
+    private var ignoredUpdateVersion: String? = settingsStore.loadIgnoredUpdateVersion()
     private val initialDownloadedNames = if (effectiveAllowRedownloadAfterDownload) {
         historyStore.clearDownloadedNames()
         emptySet()
     } else {
         historyStore.loadDownloadedNames()
     }
+    private var hasPromptedUpdateThisSession: Boolean = false
 
     private val _state = MutableStateFlow(
         UiState(
@@ -201,6 +204,58 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 _state.update { it.copy(isDownloading = false, status = UiMessages.downloadException(e.message)) }
             }
+        }
+    }
+
+    fun checkForUpdates(currentVersion: String, silentIfUpToDate: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isCheckingUpdate = true) }
+            val result = updateChecker.check(currentVersion)
+            _state.update { state ->
+                val isIgnoredVersion = result.latestVersion != null && result.latestVersion == ignoredUpdateVersion
+                val shouldPrompt = result.hasUpdate &&
+                    silentIfUpToDate &&
+                    !hasPromptedUpdateThisSession &&
+                    !isIgnoredVersion
+                if (shouldPrompt) {
+                    hasPromptedUpdateThisSession = true
+                }
+                val base = state.copy(
+                    isCheckingUpdate = false,
+                    latestAndroidVersion = result.latestVersion,
+                    hasUpdate = result.hasUpdate,
+                    updateUrl = result.releaseUrl,
+                    showUpdateDialog = shouldPrompt || state.showUpdateDialog
+                )
+                when {
+                    result.error != null && !silentIfUpToDate -> base.copy(status = "检查更新失败: ${result.error}")
+                    result.hasUpdate -> base.copy(
+                        status = if (isIgnoredVersion && !silentIfUpToDate) {
+                            "发现新版本: ${result.latestVersion}（已忽略自动提醒）"
+                        } else {
+                            "发现新版本: ${result.latestVersion}（当前: $currentVersion）"
+                        }
+                    )
+                    !silentIfUpToDate -> base.copy(status = "当前已是最新版本（$currentVersion）")
+                    else -> base
+                }
+            }
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        _state.update { it.copy(showUpdateDialog = false) }
+    }
+
+    fun ignoreCurrentUpdateVersion() {
+        val latest = _state.value.latestAndroidVersion ?: return
+        ignoredUpdateVersion = latest
+        settingsStore.saveIgnoredUpdateVersion(latest)
+        _state.update {
+            it.copy(
+                showUpdateDialog = false,
+                status = "已忽略版本 $latest 的自动提醒"
+            )
         }
     }
 

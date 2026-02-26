@@ -160,6 +160,17 @@ Get-Content lanzou_downloader.log -Wait
 ## 版本历史
 
 ### Android 版本更迭
+#### v1.2.0
+- 新增版本更新检查功能（检查源：`https://gitee.com/greovity/lanzou_manga_downloader/releases`）：
+  - 启动后自动静默检查更新（发现新版本时提示）
+  - 设置页新增“检查更新”与“打开发布页”
+  - 支持“忽略此版本”持久化（同一版本后续不再自动弹窗）
+- 版本配置更新：
+  - `versionName` 调整为 `v1.2.0`
+  - `versionCode` 递增为 `3`
+- APK 发布：
+  - `release/apks/v1.2.0/lanzouMangaDownloader_android_v1.2.0.apk`
+
 #### v1.1.0
 - Android 凭证加载方式调整为“默认读取私有配置文件 `source_code_android/private_credentials.properties`”
 - 公共仓库不再保存 `prod` 相关混淆常量，降低源码泄露风险
@@ -189,7 +200,7 @@ Get-Content lanzou_downloader.log -Wait
   - `release/apks/v1.0.1/lanzouMangaDownloader.apk`
 
 ### Windows 版本更迭
-#### v6.1
+#### v6.2.0
 - GUI 交互增强：
   - 新增“自定义蓝奏云链接 / 密码”入口，可在运行时切换目标分享页
   - 新增“恢复默认链接”按钮，支持快速回退到内置预设
