@@ -19,5 +19,8 @@ data class UiState(
     val latestAndroidVersion: String? = null,
     val hasUpdate: Boolean = false,
     val updateUrl: String = "https://gitee.com/greovity/lanzou_manga_downloader/releases",
+    val androidUpdateUrl: String? = null,
+    val windowsUpdateUrl: String? = null,
+    val startupUpdateTip: String? = null,
     val showUpdateDialog: Boolean = false
 )

@@ -64,6 +64,7 @@ fun MainScreen(
     onOpenDownloadDirectory: () -> Unit,
     onToggleSelection: (Int) -> Unit,
     onCheckUpdates: () -> Unit,
+    onDownloadAndroidPackage: (String) -> Unit,
     onOpenReleasePage: (String) -> Unit,
     onDismissUpdateDialog: () -> Unit,
     onIgnoreUpdateVersion: () -> Unit,
@@ -220,6 +221,13 @@ fun MainScreen(
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                             )
+                            if (!ui.startupUpdateTip.isNullOrBlank()) {
+                                Text(
+                                    text = ui.startupUpdateTip,
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -321,10 +329,14 @@ fun MainScreen(
                         latestAndroidVersion = ui.latestAndroidVersion,
                         hasUpdate = ui.hasUpdate,
                         version = version,
+                        androidUpdateUrl = ui.androidUpdateUrl,
                         onToggleUseThirdPartyLinks = onToggleUseCustomSource,
                         onToggleAllowRedownload = onToggleAllowRedownloadAfterDownload,
                         onCheckUpdates = onCheckUpdates,
-                        onOpenReleasePage = { onOpenReleasePage(ui.updateUrl) }
+                        onOpenReleasePage = { onOpenReleasePage(ui.updateUrl) },
+                        onDownloadAndroidPackage = {
+                            onDownloadAndroidPackage(ui.androidUpdateUrl ?: ui.updateUrl)
+                        }
                     )
                     Button(
                         modifier = Modifier.fillMaxWidth(),
@@ -366,11 +378,15 @@ fun MainScreen(
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 onDismissUpdateDialog()
-                                onOpenReleasePage(ui.updateUrl)
+                                if (!ui.androidUpdateUrl.isNullOrBlank()) {
+                                    onDownloadAndroidPackage(ui.androidUpdateUrl)
+                                } else {
+                                    onOpenReleasePage(ui.updateUrl)
+                                }
                             },
                             colors = ButtonDefaults.buttonColorsPrimary()
                         ) {
-                            Text("去更新")
+                            Text(if (!ui.androidUpdateUrl.isNullOrBlank()) "下载APK" else "去更新")
                         }
                     }
                     Button(

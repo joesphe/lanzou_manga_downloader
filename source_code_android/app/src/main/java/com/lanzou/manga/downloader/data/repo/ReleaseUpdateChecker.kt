@@ -10,6 +10,8 @@ import org.json.JSONObject
 data class UpdateCheckResult(
     val latestVersion: String? = null,
     val releaseUrl: String = RELEASES_PAGE_URL,
+    val androidDownloadUrl: String? = null,
+    val windowsDownloadUrl: String? = null,
     val hasUpdate: Boolean = false,
     val error: String? = null
 )
@@ -28,9 +30,11 @@ class ReleaseUpdateChecker(
                 UpdateCheckResult(error = "无法获取最新版本信息")
             } else {
                 UpdateCheckResult(
-                    latestVersion = latest.first,
-                    releaseUrl = latest.second,
-                    hasUpdate = isVersionLess(currentVersion, latest.first)
+                    latestVersion = latest.version,
+                    releaseUrl = latest.releaseUrl,
+                    androidDownloadUrl = latest.androidDownloadUrl,
+                    windowsDownloadUrl = latest.windowsDownloadUrl,
+                    hasUpdate = isVersionLess(currentVersion, latest.version)
                 )
             }
         }.getOrElse { e ->
@@ -38,24 +42,22 @@ class ReleaseUpdateChecker(
         }
     }
 
-    private fun fetchLatestAndroidRelease(): Pair<String, String>? {
+    private fun fetchLatestAndroidRelease(): ParsedRelease? {
         parseLatestFromObject(fetchJsonObject(LATEST_API_URL))?.let { return it }
 
         val list = fetchJsonArray(RELEASES_API_URL) ?: return null
-        var bestVersion: String? = null
-        var bestUrl = RELEASES_PAGE_URL
+        var best: ParsedRelease? = null
         for (i in 0 until list.length()) {
             val obj = list.optJSONObject(i) ?: continue
-            val pair = parseLatestFromObject(obj) ?: continue
-            if (bestVersion == null || isVersionLess(bestVersion, pair.first)) {
-                bestVersion = pair.first
-                bestUrl = pair.second
+            val parsed = parseLatestFromObject(obj) ?: continue
+            if (best == null || isVersionLess(best.version, parsed.version)) {
+                best = parsed
             }
         }
-        return bestVersion?.let { it to bestUrl }
+        return best
     }
 
-    private fun parseLatestFromObject(obj: JSONObject?): Pair<String, String>? {
+    private fun parseLatestFromObject(obj: JSONObject?): ParsedRelease? {
         if (obj == null) return null
         val candidates = mutableListOf<String>()
         val tagName = obj.optString("tag_name")
@@ -100,7 +102,25 @@ class ReleaseUpdateChecker(
             tag.isNotBlank() -> "$RELEASES_PAGE_URL/tag/$tag"
             else -> RELEASES_PAGE_URL
         }
-        return best to url
+        return ParsedRelease(
+            version = best,
+            releaseUrl = url,
+            androidDownloadUrl = pickAssetDownloadUrl(assets, ".apk"),
+            windowsDownloadUrl = pickAssetDownloadUrl(assets, ".exe")
+        )
+    }
+
+    private fun pickAssetDownloadUrl(assets: JSONArray?, suffix: String): String? {
+        if (assets == null) return null
+        for (i in 0 until assets.length()) {
+            val asset = assets.optJSONObject(i) ?: continue
+            val name = asset.optString("name")
+            val url = asset.optString("browser_download_url")
+            if (name.endsWith(suffix, ignoreCase = true) && url.startsWith("http")) {
+                return url
+            }
+        }
+        return null
     }
 
     private fun fetchJsonObject(url: String): JSONObject? {
@@ -191,3 +211,10 @@ class ReleaseUpdateChecker(
             .map { it.toInt() }
     }
 }
+
+private data class ParsedRelease(
+    val version: String,
+    val releaseUrl: String,
+    val androidDownloadUrl: String?,
+    val windowsDownloadUrl: String?
+)

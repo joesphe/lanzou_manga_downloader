@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -225,6 +226,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     latestAndroidVersion = result.latestVersion,
                     hasUpdate = result.hasUpdate,
                     updateUrl = result.releaseUrl,
+                    androidUpdateUrl = result.androidDownloadUrl,
+                    windowsUpdateUrl = result.windowsDownloadUrl,
                     showUpdateDialog = shouldPrompt || state.showUpdateDialog
                 )
                 when {
@@ -238,6 +241,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                     !silentIfUpToDate -> base.copy(status = "当前已是最新版本（$currentVersion）")
                     else -> base
+                }
+            }
+            if (silentIfUpToDate && result.error == null && !result.hasUpdate) {
+                val tip = "已是最新版本"
+                _state.update { it.copy(startupUpdateTip = tip) }
+                delay(2000)
+                _state.update { state ->
+                    if (state.startupUpdateTip == tip) state.copy(startupUpdateTip = null) else state
                 }
             }
         }

@@ -22,10 +22,12 @@ fun SettingsDialogContent(
     latestAndroidVersion: String?,
     hasUpdate: Boolean,
     version: String,
+    androidUpdateUrl: String?,
     onToggleUseThirdPartyLinks: (Boolean) -> Unit,
     onToggleAllowRedownload: (Boolean) -> Unit,
     onCheckUpdates: () -> Unit,
-    onOpenReleasePage: () -> Unit
+    onOpenReleasePage: () -> Unit,
+    onDownloadAndroidPackage: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -107,10 +109,10 @@ fun SettingsDialogContent(
                 if (hasUpdate) {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = onOpenReleasePage,
+                        onClick = if (!androidUpdateUrl.isNullOrBlank()) onDownloadAndroidPackage else onOpenReleasePage,
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
-                        Text("打开发布页")
+                        Text(if (!androidUpdateUrl.isNullOrBlank()) "下载Android安装包" else "打开发布页")
                     }
                 }
             }

@@ -141,6 +141,26 @@ def _detect_current_version():
 
 
 class _UpdateChecker:
+    def _extract_assets(self, release_obj):
+        apk_url = None
+        exe_url = None
+        assets = release_obj.get("assets")
+        if not isinstance(assets, list):
+            return apk_url, exe_url
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            name = str(asset.get("name") or "")
+            url = str(asset.get("browser_download_url") or "")
+            if not url.startswith("http"):
+                continue
+            lower = name.lower()
+            if lower.endswith(".apk") and not apk_url:
+                apk_url = url
+            elif lower.endswith(".exe") and not exe_url:
+                exe_url = url
+        return apk_url, exe_url
+
     def _extract_version_from_release(self, release_obj):
         if not isinstance(release_obj, dict):
             return None
@@ -184,7 +204,13 @@ class _UpdateChecker:
             obj = resp.json()
             ver = self._extract_version_from_release(obj)
             if ver:
-                return ver, self._extract_release_url(obj)
+                apk_url, exe_url = self._extract_assets(obj)
+                return {
+                    "version": ver,
+                    "release_url": self._extract_release_url(obj),
+                    "apk_url": apk_url,
+                    "exe_url": exe_url,
+                }
         except Exception:
             pass
 
@@ -194,17 +220,21 @@ class _UpdateChecker:
             resp.raise_for_status()
             arr = resp.json()
             if isinstance(arr, list):
-                best_ver = None
-                best_url = RELEASES_PAGE_URL
+                best = None
                 for item in arr:
                     ver = self._extract_version_from_release(item)
                     if not ver:
                         continue
-                    if best_ver is None or _is_version_less(best_ver, ver):
-                        best_ver = ver
-                        best_url = self._extract_release_url(item)
-                if best_ver:
-                    return best_ver, best_url
+                    if best is None or _is_version_less(best["version"], ver):
+                        apk_url, exe_url = self._extract_assets(item)
+                        best = {
+                            "version": ver,
+                            "release_url": self._extract_release_url(item),
+                            "apk_url": apk_url,
+                            "exe_url": exe_url,
+                        }
+                if best:
+                    return best
         except Exception:
             pass
 
@@ -220,11 +250,21 @@ class _UpdateChecker:
                 for v in versions[1:]:
                     if _is_version_less(best_ver, v):
                         best_ver = v
-                return best_ver, f"{RELEASES_PAGE_URL}/tag/{best_ver}"
+                return {
+                    "version": best_ver,
+                    "release_url": f"{RELEASES_PAGE_URL}/tag/{best_ver}",
+                    "apk_url": None,
+                    "exe_url": None,
+                }
         except Exception:
             pass
 
-        return None, RELEASES_PAGE_URL
+        return {
+            "version": None,
+            "release_url": RELEASES_PAGE_URL,
+            "apk_url": None,
+            "exe_url": None,
+        }
 
 # 以下是GUI部分的代码（优化布局并添加用户提示）
 class LanzouDownloaderGUI:
@@ -558,7 +598,11 @@ class LanzouDownloaderGUI:
         """检查是否有可用更新。"""
         def _worker():
             checker = _UpdateChecker()
-            latest_version, release_url = checker.fetch_latest_release()
+            result = checker.fetch_latest_release()
+            latest_version = result.get("version")
+            release_url = result.get("release_url") or RELEASES_PAGE_URL
+            exe_url = result.get("exe_url")
+            apk_url = result.get("apk_url")
 
             def _notify():
                 if not latest_version:
@@ -567,12 +611,27 @@ class LanzouDownloaderGUI:
                     return
 
                 if _is_version_less(self.current_version, latest_version):
-                    should_open = messagebox.askyesno(
+                    if exe_url:
+                        should_open_exe = messagebox.askyesno(
+                            "发现新版本",
+                            f"当前版本: {self.current_version}\n最新版本: {latest_version}\n\n是否直接下载 Windows 安装包（.exe）？"
+                        )
+                        if should_open_exe:
+                            webbrowser.open(exe_url)
+                            return
+                    should_open_release = messagebox.askyesno(
                         "发现新版本",
-                        f"当前版本: {self.current_version}\n最新版本: {latest_version}\n\n是否打开发布页？"
+                        "未选择直接下载或未找到可用安装包，是否打开发布页？"
                     )
-                    if should_open:
-                        webbrowser.open(release_url or RELEASES_PAGE_URL)
+                    if should_open_release:
+                        webbrowser.open(release_url)
+                    elif apk_url:
+                        should_open_apk = messagebox.askyesno(
+                            "Android安装包",
+                            "是否改为下载 Android 安装包（.apk）？"
+                        )
+                        if should_open_apk:
+                            webbrowser.open(apk_url)
                 elif not silent_if_latest:
                     messagebox.showinfo("检查更新", f"当前已是最新版本（{self.current_version}）。")
 
