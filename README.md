@@ -184,13 +184,23 @@ cd /mnt/d/lanzou_manga_downloader/source_code_android
   - `source_code_android/app/build/outputs/apk/debug/app-debug.apk`
 - 发布目录（本仓库）：
   - `release/apks/`
-  - 当前版本归档：`release/apks/v1.0.1/lanzouMangaDownloader.apk`
+  - 当前版本归档：`release/apks/v1.1.0/lanzouMangaDownloader_android_v1.1.0.apk`
 
 ## 版本历史
 
 ### Android 版本更迭
-
-#### v1.0.1 (最新版本)
+#### v1.1.0
+- Android 凭证加载方式调整为“默认读取私有配置文件 `source_code_android/private_credentials.properties`”
+- 公共仓库不再保存 `prod` 相关混淆常量，降低源码泄露风险
+- 构建流程收敛为单通道输出：
+  - 构建命令：`./gradlew --no-daemon clean assembleDebug`
+  - 产物目录：`app/build/outputs/apk/debug/`
+- 交互与可用性优化：
+  - 新增右下角“回到确认下载”悬浮上箭头
+  - 顶部设置入口改为悬浮按钮
+- APK 发布：
+  - `release/apks/v1.1.0/lanzouMangaDownloader_android_v1.1.0.apk`
+#### v1.0.1 
 - 完成 Android 端结构化重构（不改变核心业务行为）：
   - 统一筛选/选择逻辑（`UiSelectors`）
   - UI 拆分为 `MainScreen` + `FileList`
@@ -208,8 +218,22 @@ cd /mnt/d/lanzou_manga_downloader/source_code_android
   - `release/apks/v1.0.1/lanzouMangaDownloader.apk`
 
 ### Windows 版本更迭
+#### v6.1
+- GUI 交互增强：
+  - 新增“自定义蓝奏云链接 / 密码”入口，可在运行时切换目标分享页
+  - 新增“恢复默认链接”按钮，支持快速回退到内置预设
+- 文件列表获取体验优化：
+  - 列表改为后台线程分批追加到界面，支持“边加载边选择并下载已加载文件”
+  - 新增“停止加载”能力，可在拉取过程中主动中断
+- 核心代码进一步模块化：
+  - 从单文件核心继续拆分为 `lanzou_core` / `lanzou_list_fetcher` / `lanzou_download_core` / `lanzou_types` / `lanzou_errors`
+  - 新增统一错误码与数据结构，便于后续维护与跨端迁移
+- 安全与可运维性增强：
+  - 预设凭证混淆升级为 `AES-GCM + 分片密钥重组`
+  - 日志中的真实链接改为哈希掩码输出，降低敏感信息泄露风险
+  - 运行依赖新增 `cryptography`
 
-#### v6.0 (最新版本)
+#### v6.0 
 - 代码架构重构：将核心逻辑抽离至 `source_code_common/lanzou_gui_core.py`，`dev/prod` 目录改为轻量入口层
 - 新增双模式入口：
   - 生产版：`source_code_prod/lanzoub_downloader_gui_mix.py`（requests + 浏览器兜底）
