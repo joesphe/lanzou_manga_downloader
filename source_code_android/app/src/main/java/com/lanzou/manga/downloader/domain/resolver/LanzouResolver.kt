@@ -33,6 +33,7 @@ class LanzouResolver(private val client: OkHttpClient) {
         val ajaxData = pms.ajaxData ?: return null
         val sign = pms.sign ?: return null
         val fileId = pms.fileId ?: return null
+        val websign = pms.websign ?: ""
 
         val ajaxUrl = "$origin/ajaxm.php?file=$fileId"
         val body = FormBody.Builder()
@@ -40,7 +41,7 @@ class LanzouResolver(private val client: OkHttpClient) {
             .add("websignkey", ajaxData)
             .add("signs", ajaxData)
             .add("sign", sign)
-            .add("websign", "")
+            .add("websign", websign)
             .add("kd", "1")
             .add("ves", "1")
             .build()
@@ -123,7 +124,7 @@ class LanzouResolver(private val client: OkHttpClient) {
     ): FnParams? {
         var best: FnParams? = null
         if (!ajaxFileId.isNullOrBlank() && ajaxFileId.all { it.isDigit() }) {
-            best = FnParams(fileId = ajaxFileId, ajaxData = null, sign = null)
+            best = FnParams(fileId = ajaxFileId, ajaxData = null, sign = null, websign = null)
         }
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
             .findAll(fnHtml).map { it.groupValues[1] }.toList()
@@ -155,14 +156,18 @@ class LanzouResolver(private val client: OkHttpClient) {
             ?: Regex("websignkey\\s*[:=]\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
         val sign = Regex("var\\s+wp_sign\\s*=\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
             ?: Regex("\\bsign\\s*[:=]\\s*['\"]([^'\"]+)['\"]").find(text)?.groupValues?.get(1)
-        return FnParams(fileId, ajaxData, sign)
+        val websign = Regex("var\\s+websign\\s*=\\s*['\"]([^'\"]*)['\"]").find(text)?.groupValues?.get(1)
+            ?: Regex("['\"]websign['\"]\\s*[:=]\\s*['\"]([^'\"]*)['\"]").find(text)?.groupValues?.get(1)
+            ?: Regex("['\"]websign['\"]\\s*[:=]\\s*(\\d+)").find(text)?.groupValues?.get(1)
+        return FnParams(fileId, ajaxData, sign, websign)
     }
 
     private fun merge(old: FnParams?, newer: FnParams?): FnParams {
         return FnParams(
             fileId = old?.fileId ?: newer?.fileId,
             ajaxData = old?.ajaxData ?: newer?.ajaxData,
-            sign = old?.sign ?: newer?.sign
+            sign = old?.sign ?: newer?.sign,
+            websign = old?.websign ?: newer?.websign
         )
     }
 }
@@ -170,7 +175,8 @@ class LanzouResolver(private val client: OkHttpClient) {
 private data class FnParams(
     val fileId: String?,
     val ajaxData: String?,
-    val sign: String?
+    val sign: String?,
+    val websign: String?
 ) {
     fun isComplete(): Boolean = !fileId.isNullOrBlank() && !ajaxData.isNullOrBlank() && !sign.isNullOrBlank()
 }

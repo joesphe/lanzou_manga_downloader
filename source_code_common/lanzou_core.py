@@ -381,6 +381,17 @@ class OptimizedLanzouDownloader:
                 out["wp_sign"] = html.unescape(m.group(1)).strip()
                 break
 
+        # websign（部分站点要求固定值，如 "2"）
+        for p in [
+            r"var\s+websign\s*=\s*['\"]([^'\"]*)['\"]",
+            r"['\"]websign['\"]\s*[:=]\s*['\"]([^'\"]*)['\"]",
+            r"['\"]websign['\"]\s*[:=]\s*(\d+)",
+        ]:
+            m = re.search(p, text, re.I)
+            if m:
+                out["websign"] = html.unescape(m.group(1)).strip()
+                break
+
         return out
 
     def _extract_ajax_params_from_fn_assets(self, fn_html, origin, fn_url, headers):
@@ -391,7 +402,7 @@ class OptimizedLanzouDownloader:
             nonlocal best
             if not d:
                 return
-            for k in ("file_id", "ajaxdata", "wp_sign"):
+            for k in ("file_id", "ajaxdata", "wp_sign", "websign"):
                 if k not in best and d.get(k):
                     best[k] = d.get(k)
 
@@ -429,7 +440,8 @@ class OptimizedLanzouDownloader:
                 "从fn脚本资产提取到部分参数: "
                 f"file_id={bool(best.get('file_id'))}, "
                 f"ajaxdata={bool(best.get('ajaxdata'))}, "
-                f"wp_sign={bool(best.get('wp_sign'))}"
+                f"wp_sign={bool(best.get('wp_sign'))}, "
+                f"websign={bool(best.get('websign'))}"
             )
         return best
 
@@ -523,6 +535,7 @@ class OptimizedLanzouDownloader:
             # 2) 访问 fn 页面，仅从脚本资产提取 ajaxdata/wp_sign/file_id（失败自动重试一次）
             ajaxdata = None
             wp_sign = None
+            websign = None
             file_id = str(ajax_file_id).strip() if ajax_file_id is not None else None
             if file_id and not file_id.isdigit():
                 file_id = None
@@ -547,6 +560,10 @@ class OptimizedLanzouDownloader:
                     ajaxdata = p1.get("ajaxdata")
                 if not wp_sign:
                     wp_sign = p1.get("wp_sign")
+                if websign is None:
+                    # 允许空字符串作为合法值（部分站点为 websign:''）
+                    if "websign" in p1:
+                        websign = p1.get("websign")
                 if not file_id:
                     file_id = p1.get("file_id")
 
@@ -582,7 +599,7 @@ class OptimizedLanzouDownloader:
                 "websignkey": ajaxdata,
                 "signs": ajaxdata,
                 "sign": wp_sign,
-                "websign": "",
+                "websign": websign if websign is not None else "",
                 "kd": "1",
                 "ves": "1",
             }
