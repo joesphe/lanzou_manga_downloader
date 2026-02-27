@@ -160,6 +160,7 @@ Get-Content lanzou_downloader.log -Wait
 ## 版本历史
 
 ### Android 版本更迭
+#### v1.2.1之后的更新说明将移动在release发行说明
 #### v1.2.0
 - 新增版本更新检查功能（检查源：`https://gitee.com/greovity/lanzou_manga_downloader/releases`）：
   - 启动后自动静默检查更新（发现新版本时提示）
