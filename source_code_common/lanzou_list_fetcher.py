@@ -2,6 +2,7 @@ import time
 import random
 import requests
 import re
+import html
 from urllib.parse import urlparse, parse_qs, urljoin
 
 try:
@@ -16,16 +17,75 @@ class LanzouListFetcher:
     def __init__(self, downloader):
         self.d = downloader
 
-    def fetch(self, url=None, password=None, on_batch=None, stop_event=None):
+    def fetch(
+        self,
+        url=None,
+        password=None,
+        on_batch=None,
+        stop_event=None,
+        _visited_links=None,
+        _is_subfolder=False,
+        _folder_prefix="",
+    ):
         """登录并获取文件列表（只做列表逻辑）。"""
         if url is None:
             url = self.d.default_url
         if password is None:
             password = self.d.default_password
-        self.d.files = []
-        self.d.file_items = []
+        if not _is_subfolder:
+            self.d.files = []
+            self.d.file_items = []
+        if _visited_links is None:
+            _visited_links = set()
 
         payload_debug_keys = None
+        discovered_subfolders = []
+
+        def _normalize_share_url(u):
+            try:
+                p = urlparse(u)
+                return f"{p.scheme}://{p.netloc}{p.path}"
+            except Exception:
+                return str(u or "").strip()
+
+        def _extract_subfolder_links(page_html, base_url):
+            if not page_html:
+                return []
+            out = []
+            seen = set()
+            for m in re.finditer(r"<a[^>]+href=['\"]([^'\"]+)['\"][^>]*>", page_html, re.I):
+                href = (m.group(1) or "").strip()
+                if not href:
+                    continue
+                if href.startswith("javascript:") or href.startswith("#"):
+                    continue
+                if not re.search(r"/b[0-9a-z]+", href, re.I):
+                    continue
+                start = max(0, m.start() - 260)
+                end = min(len(page_html), m.end() + 720)
+                snippet = page_html[start:end]
+                if "mbxfolder" not in snippet and "folderdown" not in snippet:
+                    continue
+
+                sub_url = urljoin(base_url, href)
+                norm = _normalize_share_url(sub_url)
+                if not norm or norm in seen:
+                    continue
+                seen.add(norm)
+
+                name = ""
+                name_match = re.search(
+                    r"class=['\"]filename['\"][^>]*>(.*?)<div[^>]*class=['\"]filesize['\"]",
+                    snippet,
+                    re.I | re.S,
+                )
+                if name_match:
+                    raw = re.sub(r"<[^>]+>", "", name_match.group(1))
+                    name = html.unescape(raw).strip()
+                if not name:
+                    name = norm.rsplit("/", 1)[-1]
+                out.append((sub_url, name))
+            return out
 
         def _is_lanzou_share_link(share_url, page_html):
             parsed = urlparse(share_url)
@@ -181,6 +241,9 @@ class LanzouListFetcher:
                 if e.code == ErrorCode.PARSE:
                     raise LanzouError(ErrorCode.INVALID_LINK, "链接不是蓝奏云分享页，请重新输入正确的蓝奏云链接")
                 raise
+            discovered_subfolders = _extract_subfolder_links(page_html, url)
+            if discovered_subfolders:
+                print(f"调试: 发现子目录 {len(discovered_subfolders)} 个")
             ctx["share_url"] = share_url
             ctx["referer_url"] = url
             ajax_url = f"{ctx['origin']}/filemoreajax.php?file={ctx['fid']}"
@@ -350,7 +413,7 @@ class LanzouListFetcher:
 
                 return last_data, last_zt
 
-            index = 1
+            index = len(self.d.files) + 1
             page = 1
             max_pages = self.d.list_config.max_pages
             seen_ids = set()
@@ -451,6 +514,9 @@ class LanzouListFetcher:
                     )
                     self.d.file_items.append(item)
                     file_info = item.to_dict()
+                    if _folder_prefix:
+                        file_info["folder_path"] = _folder_prefix
+                        file_info["relative_path"] = f"{_folder_prefix}{file_info['name']}"
                     self.d.files.append(file_info)
                     batch.append(file_info)
                     if index <= 50:
@@ -477,5 +543,26 @@ class LanzouListFetcher:
             raise
         except Exception as e:
             raise LanzouError(ErrorCode.UNKNOWN, f"获取文件列表时出错: {e}")
+
+        current_norm = _normalize_share_url(url)
+        _visited_links.add(current_norm)
+        for sub_url, sub_name in discovered_subfolders:
+            sub_norm = _normalize_share_url(sub_url)
+            if not sub_norm or sub_norm in _visited_links:
+                continue
+            print(f"调试: 进入子目录 {sub_name} -> {sub_norm}")
+            try:
+                self.fetch(
+                    url=sub_url,
+                    password=password,
+                    on_batch=on_batch,
+                    stop_event=stop_event,
+                    _visited_links=_visited_links,
+                    _is_subfolder=True,
+                    _folder_prefix=f"{_folder_prefix}{sub_name}/",
+                )
+            except Exception as sub_err:
+                # 子目录失败不影响主目录流程，尽量继续抓取其它子目录
+                print(f"调试: 子目录抓取失败，已跳过 {sub_norm}，原因: {sub_err}")
 
         return self.d.files

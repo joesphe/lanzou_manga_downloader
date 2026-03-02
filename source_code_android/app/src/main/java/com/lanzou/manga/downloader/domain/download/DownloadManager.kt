@@ -158,12 +158,13 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
         onProgress: (Int) -> Unit
     ): Pair<Boolean, String> {
         val safeName = sanitizeFilename(fileName)
+        val safeSubDir = sanitizeSubDir(subDir)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, safeName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$subDir")
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$safeSubDir")
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -174,7 +175,7 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
                     values.clear()
                     values.put(MediaStore.Downloads.IS_PENDING, 0)
                     resolver.update(uri, values, null, null)
-                    true to "content://downloads/public_downloads (${Environment.DIRECTORY_DOWNLOADS}/$subDir/$safeName)"
+                    true to "content://downloads/public_downloads (${Environment.DIRECTORY_DOWNLOADS}/$safeSubDir/$safeName)"
                 } else {
                     resolver.delete(uri, null, null)
                     false to "下载失败"
@@ -188,7 +189,7 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
         // API < 29 fallback (requires legacy storage permission)
         val dir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            subDir
+            safeSubDir
         )
         if (!dir.exists() && !dir.mkdirs()) {
             return false to "创建下载目录失败: ${dir.absolutePath}"
@@ -203,6 +204,14 @@ class DownloadManager(private val client: OkHttpClient) : FileDownloader {
         name = name.trim().trim('.')
         if (name.isBlank()) return "unnamed_file"
         return name
+    }
+
+    private fun sanitizeSubDir(raw: String): String {
+        val parts = raw.replace("\\", "/")
+            .split('/')
+            .map { sanitizeFilename(it) }
+            .filter { it.isNotBlank() && it != "." && it != ".." }
+        return if (parts.isEmpty()) "MangaDownloads" else parts.joinToString("/")
     }
 
     private fun saveToFile(total: Long, input: java.io.InputStream, output: File, onProgress: (Int) -> Unit): Boolean {

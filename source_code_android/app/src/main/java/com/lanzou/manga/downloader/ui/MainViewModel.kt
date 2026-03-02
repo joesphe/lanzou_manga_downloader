@@ -65,7 +65,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     status = UiMessages.FETCHING_LIST,
                     isLoadingList = true,
                     files = emptyList(),
-                    selectedIndices = emptySet()
+                    selectedIndices = emptySet(),
+                    currentFolderPath = ""
                     )
                 }
                 val files = fetchFilesUseCase { batch ->
@@ -79,7 +80,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         )
                     }
                 }
-                _state.update { it.copy(files = files, status = UiMessages.listUpdated(files.size), isLoadingList = false) }
+                _state.update {
+                    it.copy(
+                        files = files,
+                        status = UiMessages.listUpdated(files.size),
+                        isLoadingList = false,
+                        currentFolderPath = ""
+                    )
+                }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoadingList = false, status = UiMessages.listFailed(e.message)) }
             }
@@ -120,6 +128,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateSearchQuery(query: String) {
         _state.update { it.copy(searchQuery = query) }
+    }
+
+    fun enterFolder(folderName: String) {
+        val next = folderName.trim().trim('/')
+        if (next.isBlank()) return
+        _state.update { state ->
+            val current = state.currentFolderPath.trim('/')
+            val combined = if (current.isBlank()) next else "$current/$next"
+            state.copy(currentFolderPath = "$combined/")
+        }
+    }
+
+    fun goParentFolder() {
+        _state.update { state ->
+            val current = state.currentFolderPath.trim('/')
+            if (current.isBlank()) return@update state
+            val parent = current.substringBeforeLast('/', "")
+            val next = if (parent.isBlank()) "" else "$parent/"
+            state.copy(currentFolderPath = next)
+        }
     }
 
     fun toggleUseCustomSource(enabled: Boolean) {
@@ -188,7 +216,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         selectedFiles = selected,
                         downloadedNames = stateSnapshot.downloadedNames,
                         selectedIndices = stateSnapshot.selectedIndices,
-                        trackDownloadedNames = !stateSnapshot.allowRedownloadAfterDownload
+                        trackDownloadedNames = !stateSnapshot.allowRedownloadAfterDownload,
+                        useCustomSource = stateSnapshot.useCustomSource
                     ),
                     onStatus = { msg ->
                         _state.update { it.copy(status = msg) }

@@ -6,5 +6,7 @@ data class LanzouFile(
     val size: String,
     val time: String,
     val link: String,
-    val ajaxFileId: String? = null
+    val ajaxFileId: String? = null,
+    val folderPath: String = "",
+    val relativePath: String = ""
 )

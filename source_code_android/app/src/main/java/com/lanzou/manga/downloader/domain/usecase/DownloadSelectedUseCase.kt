@@ -17,7 +17,8 @@ class DownloadSelectedUseCase(
         val selectedFiles: List<LanzouFile>,
         val downloadedNames: Set<String>,
         val selectedIndices: Set<Int>,
-        val trackDownloadedNames: Boolean
+        val trackDownloadedNames: Boolean,
+        val useCustomSource: Boolean
     )
 
     data class Result(
@@ -45,6 +46,7 @@ class DownloadSelectedUseCase(
                 file = file,
                 order = order,
                 total = total,
+                useCustomSource = params.useCustomSource,
                 onStatus = onStatus
             )
             if (ok) {
@@ -75,6 +77,7 @@ class DownloadSelectedUseCase(
         file: LanzouFile,
         order: Int,
         total: Int,
+        useCustomSource: Boolean,
         onStatus: (String) -> Unit
     ): Boolean {
         val real = repository.resolveRealUrl(file.link, file.ajaxFileId)
@@ -83,9 +86,10 @@ class DownloadSelectedUseCase(
         val firstTryOk = downloadWithProgress(
             context = context,
             url = real,
-            fileName = file.name,
+            file = file,
             order = order,
             total = total,
+            useCustomSource = useCustomSource,
             retry = false,
             onStatus = onStatus
         )
@@ -95,9 +99,10 @@ class DownloadSelectedUseCase(
         return downloadWithProgress(
             context = context,
             url = fresh,
-            fileName = file.name,
+            file = file,
             order = order,
             total = total,
+            useCustomSource = useCustomSource,
             retry = true,
             onStatus = onStatus
         )
@@ -106,17 +111,19 @@ class DownloadSelectedUseCase(
     private fun downloadWithProgress(
         context: Context,
         url: String,
-        fileName: String,
+        file: LanzouFile,
         order: Int,
         total: Int,
+        useCustomSource: Boolean,
         retry: Boolean,
         onStatus: (String) -> Unit
     ): Boolean {
+        val fileName = file.name
         val result = downloader.downloadToPublicDownloads(
             context = context,
             url = url,
             fileName = fileName,
-            subDir = "MangaDownload"
+            subDir = buildDownloadSubDir(file, useCustomSource)
         ) { p ->
             onStatus(
                 if (retry) {
@@ -127,5 +134,17 @@ class DownloadSelectedUseCase(
             )
         }
         return result.first
+    }
+
+    private fun buildDownloadSubDir(file: LanzouFile, useCustomSource: Boolean): String {
+        val base = if (useCustomSource) "third party downloads" else "MangaDownloads"
+        val folder = file.folderPath
+            .replace("\\", "/")
+            .trim('/')
+            .split('/')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .joinToString("/")
+        return if (folder.isBlank()) base else "$base/$folder"
     }
 }

@@ -7,8 +7,7 @@ interface FileDownloader {
         context: Context,
         url: String,
         fileName: String,
-        subDir: String = "MangaDownload",
+        subDir: String = "MangaDownloads",
         onProgress: (Int) -> Unit = {}
     ): Pair<Boolean, String>
 }
-

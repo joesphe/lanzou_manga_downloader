@@ -65,6 +65,8 @@ class MainActivity : ComponentActivity() {
                     onDownloadSelected = vm::downloadSelected,
                     onOpenDownloadDirectory = ::openDownloadDirectory,
                     onToggleSelection = vm::toggleSelection,
+                    onEnterFolder = vm::enterFolder,
+                    onGoParentFolder = vm::goParentFolder,
                     onCheckUpdates = { vm.checkForUpdates(BuildConfig.VERSION_NAME, silentIfUpToDate = false) },
                     onDownloadAndroidPackage = ::downloadAndInstallApk,
                     onOpenReleasePage = ::openReleasePage,

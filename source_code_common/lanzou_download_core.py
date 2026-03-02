@@ -7,6 +7,32 @@ class LanzouDownloadCore:
     def __init__(self, downloader):
         self.d = downloader
 
+    def _resolve_target_path(self, file_info, download_dir):
+        """根据 relative_path/folder_path 解析最终保存路径。"""
+        d = self.d
+
+        def _safe_parts(path_text):
+            raw = str(path_text or "").replace("\\", "/")
+            parts = []
+            for p in raw.split("/"):
+                p = p.strip()
+                if not p or p in (".", ".."):
+                    continue
+                parts.append(d.sanitize_filename(p))
+            return parts
+
+        clean_filename = d.sanitize_filename(file_info['name'])
+        relative_parts = _safe_parts(file_info.get("relative_path"))
+        if relative_parts:
+            # relative_path 最后一段应为文件名，防御性替换为当前文件名
+            folder_parts = relative_parts[:-1]
+            target_dir = os.path.join(download_dir, *folder_parts) if folder_parts else download_dir
+            return os.path.join(target_dir, clean_filename), clean_filename, target_dir
+
+        folder_parts = _safe_parts(file_info.get("folder_path"))
+        target_dir = os.path.join(download_dir, *folder_parts) if folder_parts else download_dir
+        return os.path.join(target_dir, clean_filename), clean_filename, target_dir
+
     def get_real_download_url(self, file_link, ajax_file_id=None):
         return self.d._get_real_download_url_impl(file_link, ajax_file_id)
 
@@ -93,8 +119,7 @@ class LanzouDownloadCore:
         d = self.d
         try:
             print(f"开始优化下载流程: {file_info['name']}")
-            clean_filename = d.sanitize_filename(file_info['name'])
-            file_path = os.path.join(download_dir, clean_filename)
+            file_path, clean_filename, _target_dir = self._resolve_target_path(file_info, download_dir)
 
             real_url = prefetched_real_url
             last_validation_result = None
@@ -159,16 +184,14 @@ class LanzouDownloadCore:
         try:
             print(f"开始处理文件: {file_info['name']}")
 
-            clean_filename = d.sanitize_filename(file_info['name'])
-            os.makedirs(download_dir, exist_ok=True)
-
-            expected_file = os.path.join(download_dir, clean_filename)
+            expected_file, clean_filename, target_dir = self._resolve_target_path(file_info, download_dir)
+            os.makedirs(target_dir, exist_ok=True)
             if os.path.exists(expected_file):
                 if d.progress_callback:
                     d.progress_callback(clean_filename, os.path.getsize(expected_file), expected_file, "跳过(已存在)", 100)
                 return True
 
-            abs_download_path = os.path.abspath(download_dir)
+            abs_download_path = os.path.abspath(target_dir)
             d.driver.set.download_path(abs_download_path)
 
             d.driver.latest_tab.get(file_info['link'])

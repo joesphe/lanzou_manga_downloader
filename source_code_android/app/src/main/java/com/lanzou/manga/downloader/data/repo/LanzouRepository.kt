@@ -7,6 +7,7 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import org.json.JSONObject
+import java.net.URL
 
 class LanzouRepository(
     client: OkHttpClient,
@@ -41,69 +42,98 @@ class LanzouRepository(
             return emptyList()
         }
         Log.d("LanzouRepo", "fetchFiles start, pwdLen=${activePassword.length}")
-
-        val pageHtml = apiClient.getPageHtml(activeUrl) ?: return emptyList()
-        val origin = java.net.URL(activeUrl).let { "${it.protocol}://${it.host}" }
-        val ctx = pageParser.extractContext(pageHtml) ?: run {
-            Log.e("LanzouRepo", "context parse failed")
-            return emptyList()
-        }
-
-        val ajaxUrl = "$origin/filemoreajax.php?file=${ctx.fid}"
         val allFiles = mutableListOf<LanzouFile>()
         val seen = HashSet<String>()
-        var page = 1
+        val visitedShares = HashSet<String>()
         var index = 1
-        val maxPages = 500
 
-        while (page <= maxPages) {
-            val result = fetchPageWithRetry(
-                ajaxUrl = ajaxUrl,
-                origin = origin,
-                referer = activeUrl,
-                ctx = ctx,
-                page = page,
-                maxAttempts = 6
-            )
-            if (result == null) {
-                Log.e("LanzouRepo", "page=$page failed after retries")
-                break
-            }
-            val (zt, info, json) = result
-            if (zt != 1) {
-                Log.e("LanzouRepo", "zt != 1 page=$page zt=$zt info=$info")
-                break
-            }
-            val arr = json.optJSONArray("text")
-            val count = arr?.length() ?: 0
-            Log.d("LanzouRepo", "page=$page text_count=$count")
-            if (arr == null || count == 0) break
+        fun crawlShare(shareUrl: String, folderPrefix: String) {
+            val normalizedShare = normalizeShareUrl(shareUrl)
+            if (!visitedShares.add(normalizedShare)) return
 
-            val rows = pageParser.parseRows(arr)
-            val pageBatch = mutableListOf<LanzouFile>()
-            for (row in rows) {
-                if (seen.contains(row.id)) continue
-                seen.add(row.id)
-                val link = if (row.id.startsWith("http")) row.id else "$origin/${row.id.trimStart('/')}"
-                val file = LanzouFile(
-                    index = index,
-                    name = row.name,
-                    size = row.size,
-                    time = row.time,
-                    link = link,
-                    ajaxFileId = row.ajaxFileId
+            val pageHtml = apiClient.getPageHtml(shareUrl) ?: run {
+                Log.e("LanzouRepo", "getPageHtml failed: $normalizedShare")
+                return
+            }
+            val origin = runCatching { URL(shareUrl) }
+                .map { "${it.protocol}://${it.host}" }
+                .getOrElse {
+                    Log.e("LanzouRepo", "invalid share url: $shareUrl")
+                    return
+                }
+            val ctx = pageParser.extractContext(pageHtml) ?: run {
+                Log.e("LanzouRepo", "context parse failed: $normalizedShare")
+                return
+            }
+            val ajaxUrl = "$origin/filemoreajax.php?file=${ctx.fid}"
+
+            var page = 1
+            val maxPages = 500
+            while (page <= maxPages) {
+                val result = fetchPageWithRetry(
+                    ajaxUrl = ajaxUrl,
+                    origin = origin,
+                    referer = shareUrl,
+                    ctx = ctx,
+                    page = page,
+                    maxAttempts = 6
                 )
-                allFiles.add(file)
-                pageBatch.add(file)
-                index += 1
-            }
-            if (pageBatch.isNotEmpty()) {
-                onBatch(pageBatch)
+                if (result == null) {
+                    Log.e("LanzouRepo", "page=$page failed after retries share=$normalizedShare")
+                    break
+                }
+                val (zt, info, json) = result
+                if (zt != 1) {
+                    Log.e("LanzouRepo", "zt != 1 page=$page zt=$zt info=$info share=$normalizedShare")
+                    break
+                }
+                val arr = json.optJSONArray("text")
+                val count = arr?.length() ?: 0
+                Log.d("LanzouRepo", "share=$normalizedShare page=$page text_count=$count")
+                if (arr == null || count == 0) break
+
+                val rows = pageParser.parseRows(arr)
+                val pageBatch = mutableListOf<LanzouFile>()
+                for (row in rows) {
+                    val dedupeKey = "$folderPrefix|${row.id}"
+                    if (!seen.add(dedupeKey)) continue
+                    val link = if (row.id.startsWith("http")) row.id else "$origin/${row.id.trimStart('/')}"
+                    val relative = if (folderPrefix.isBlank()) row.name else "$folderPrefix${row.name}"
+                    val file = LanzouFile(
+                        index = index,
+                        name = row.name,
+                        size = row.size,
+                        time = row.time,
+                        link = link,
+                        ajaxFileId = row.ajaxFileId,
+                        folderPath = folderPrefix,
+                        relativePath = relative
+                    )
+                    allFiles.add(file)
+                    pageBatch.add(file)
+                    index += 1
+                }
+                if (pageBatch.isNotEmpty()) {
+                    onBatch(pageBatch)
+                }
+
+                if (count < 50) break
+                page += 1
             }
 
-            if (count < 50) break
-            page += 1
+            val subFolders = pageParser.extractSubFolders(pageHtml, shareUrl)
+            if (subFolders.isNotEmpty()) {
+                Log.d("LanzouRepo", "share=$normalizedShare subfolders=${subFolders.size}")
+            }
+            for (sub in subFolders) {
+                val safeName = sanitizeFolderName(sub.name)
+                if (safeName.isBlank()) continue
+                val nextPrefix = "$folderPrefix$safeName/"
+                crawlShare(sub.url, nextPrefix)
+            }
         }
+
+        crawlShare(activeUrl, "")
         Log.d("LanzouRepo", "list done total=${allFiles.size}")
         return allFiles
     }
@@ -155,5 +185,20 @@ class LanzouRepository(
             .add("ls", ls.toString())
             .add("pwd", activePassword)
             .build()
+    }
+
+    private fun normalizeShareUrl(url: String): String {
+        return runCatching {
+            val u = URL(url)
+            "${u.protocol}://${u.host}${u.path}"
+        }.getOrElse { url.trim() }
+    }
+
+    private fun sanitizeFolderName(raw: String): String {
+        val cleaned = raw
+            .replace("\\", "_")
+            .replace("/", "_")
+            .trim()
+        return if (cleaned.isBlank()) "folder" else cleaned
     }
 }

@@ -63,6 +63,8 @@ fun MainScreen(
     onDownloadSelected: () -> Unit,
     onOpenDownloadDirectory: () -> Unit,
     onToggleSelection: (Int) -> Unit,
+    onEnterFolder: (String) -> Unit,
+    onGoParentFolder: () -> Unit,
     onCheckUpdates: () -> Unit,
     onDownloadAndroidPackage: (String) -> Unit,
     onOpenReleasePage: (String) -> Unit,
@@ -71,6 +73,7 @@ fun MainScreen(
     version: String
 ) {
     val filteredFiles = UiSelectors.filteredFiles(ui)
+    val childFolders = UiSelectors.childFolders(ui)
     val selectableSelectedCount = UiSelectors.selectedUndownloadedCount(ui)
     var showSettingsDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -150,6 +153,34 @@ fun MainScreen(
                                 }
                             )
 
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = onGoParentFolder,
+                                        enabled = ui.currentFolderPath.isNotBlank() && !ui.isDownloading,
+                                        colors = ButtonDefaults.buttonColors()
+                                    ) {
+                                        Text("返回上级")
+                                    }
+                                    Text(
+                                        text = if (ui.currentFolderPath.isBlank()) {
+                                            "当前目录: /"
+                                        } else {
+                                            "当前目录: /${ui.currentFolderPath}"
+                                        },
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                    )
+                                }
+                            }
+
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     modifier = Modifier.weight(1f),
@@ -217,7 +248,7 @@ fun MainScreen(
                                 style = MiuixTheme.textStyles.body2
                             )
                             Text(
-                                text = "文件: ${ui.files.size} | 结果: ${filteredFiles.size} | 已选: $selectableSelectedCount | 已下: ${ui.downloadedNames.size}",
+                                text = "总文件: ${ui.files.size} | 当前目录文件: ${filteredFiles.size} | 子目录: ${childFolders.size} | 已选: $selectableSelectedCount | 已下: ${ui.downloadedNames.size}",
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                             )
@@ -229,6 +260,24 @@ fun MainScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                items(childFolders, key = { "folder:$it" }) { folderName ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onEnterFolder(folderName) },
+                        insideMargin = PaddingValues(vertical = 8.dp),
+                        showIndication = true,
+                        pressFeedbackType = PressFeedbackType.Sink
+                    ) {
+                        Text(
+                            text = "文件夹: $folderName",
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            color = MiuixTheme.colorScheme.primary
+                        )
                     }
                 }
 

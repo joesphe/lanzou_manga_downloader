@@ -286,6 +286,11 @@ class LanzouDownloaderGUI:
         self.selected_files = []
         self.is_loading = False
         self.stop_event = threading.Event()
+        # 文件管理器视图状态
+        self.current_folder = ""
+        self.folder_children = {}
+        self.files_in_folder = {}
+        self.tree_item_meta = {}
         
         # 创建界面
         self.setup_gui()
@@ -314,7 +319,7 @@ class LanzouDownloaderGUI:
         
         # 添加使用说明标签
         instruction_label = ttk.Label(control_frame, 
-                                     text="提示: 按住Ctrl键可多选文件，选择完成后点击'选择文件'按钮确认，然后点击'开始下载'",
+                                     text="提示: 双击文件夹可进入；按住Ctrl键可多选文件，选择完成后点击'选择文件'按钮确认，然后点击'开始下载'",
                                      foreground="blue")
         instruction_label.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 6))
 
@@ -386,7 +391,17 @@ class LanzouDownloaderGUI:
         files_frame = ttk.LabelFrame(main_frame, text="文件列表", padding="10")
         files_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         files_frame.columnconfigure(0, weight=1)
-        files_frame.rowconfigure(0, weight=1)
+        files_frame.rowconfigure(1, weight=1)
+
+        nav_frame = ttk.Frame(files_frame)
+        nav_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 8))
+        nav_frame.columnconfigure(1, weight=1)
+
+        self.back_btn = ttk.Button(nav_frame, text="返回上级", command=self.go_to_parent_folder)
+        self.back_btn.grid(row=0, column=0, sticky=tk.W, padx=(0, 8))
+        self.path_var = tk.StringVar(value="当前目录: / (根目录)")
+        self.path_label = ttk.Label(nav_frame, textvariable=self.path_var, foreground="gray")
+        self.path_label.grid(row=0, column=1, sticky=(tk.W, tk.E))
         
         # 创建Treeview和滚动条
         columns = ("序号", "文件名", "大小", "时间")
@@ -406,10 +421,11 @@ class LanzouDownloaderGUI:
         # 创建垂直滚动条
         v_scrollbar = ttk.Scrollbar(files_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=v_scrollbar.set)
+        self.tree.bind("<Double-1>", self.on_tree_double_click)
         
         # 布局Treeview和滚动条
-        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        v_scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
         
         # 进度框架
         progress_frame = ttk.LabelFrame(main_frame, text="下载进度", padding="10")
@@ -445,6 +461,129 @@ class LanzouDownloaderGUI:
         self.status_var = tk.StringVar(value="就绪")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
         status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E))
+
+        self.update_path_display()
+        self.update_nav_buttons()
+
+    def _clear_tree(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self.tree_item_meta = {}
+
+    def _reset_file_browser_state(self):
+        self.current_folder = ""
+        self.folder_children = {}
+        self.files_in_folder = {}
+        self.tree_item_meta = {}
+
+    def _normalize_folder_key(self, folder_key):
+        k = str(folder_key or "").replace("\\", "/")
+        k = re.sub(r"/{2,}", "/", k).strip("/")
+        if not k:
+            return ""
+        return k + "/"
+
+    def _register_folder_chain(self, folder_key):
+        normalized = self._normalize_folder_key(folder_key)
+        if not normalized:
+            return
+        parent = ""
+        for part in [p for p in normalized.strip("/").split("/") if p]:
+            self.folder_children.setdefault(parent, set()).add(part)
+            parent = f"{parent}{part}/"
+
+    def _ingest_file_for_browser(self, file_info):
+        relative_path = str(file_info.get("relative_path") or "").replace("\\", "/").strip("/")
+        folder_key = ""
+        if relative_path and "/" in relative_path:
+            parts = [p for p in relative_path.split("/") if p]
+            parent = ""
+            for part in parts[:-1]:
+                self.folder_children.setdefault(parent, set()).add(part)
+                parent = f"{parent}{part}/"
+            folder_key = parent
+        else:
+            folder_key = self._normalize_folder_key(file_info.get("folder_path"))
+            self._register_folder_chain(folder_key)
+
+        self.files_in_folder.setdefault(folder_key, []).append(file_info)
+
+    def _folder_parent(self, folder_key):
+        key = self._normalize_folder_key(folder_key)
+        if not key:
+            return ""
+        parts = [p for p in key.strip("/").split("/") if p]
+        if len(parts) <= 1:
+            return ""
+        return "/".join(parts[:-1]) + "/"
+
+    def update_path_display(self):
+        if not self.current_folder:
+            self.path_var.set("当前目录: / (根目录)")
+        else:
+            self.path_var.set(f"当前目录: /{self.current_folder}")
+
+    def update_nav_buttons(self):
+        self.back_btn.configure(state=("normal" if self.current_folder else "disabled"))
+
+    def render_current_folder(self):
+        self._clear_tree()
+
+        if self.current_folder:
+            item_id = self.tree.insert("", "end", values=("", "[返回上级]", "", ""))
+            self.tree_item_meta[item_id] = {"type": "up"}
+
+        child_folders = sorted(
+            list(self.folder_children.get(self.current_folder, set())),
+            key=lambda x: x.lower()
+        )
+        for folder_name in child_folders:
+            target_folder = f"{self.current_folder}{folder_name}/"
+            item_id = self.tree.insert("", "end", values=("", f"[文件夹] {folder_name}", "", ""))
+            self.tree_item_meta[item_id] = {
+                "type": "folder",
+                "folder_key": target_folder,
+                "name": folder_name,
+            }
+
+        files = self.files_in_folder.get(self.current_folder, [])
+        files_sorted = sorted(
+            files,
+            key=lambda f: int(f.get("index", 0)) if str(f.get("index", "")).isdigit() else 0
+        )
+        for file_info in files_sorted:
+            item_id = self.tree.insert("", "end", values=(
+                file_info.get("index", ""),
+                file_info.get("name", ""),
+                file_info.get("size", ""),
+                file_info.get("time", ""),
+            ))
+            self.tree_item_meta[item_id] = {"type": "file", "file": file_info}
+
+        if not child_folders and not files_sorted:
+            item_id = self.tree.insert("", "end", values=("", "当前目录暂无文件", "", ""))
+            self.tree_item_meta[item_id] = {"type": "empty"}
+
+        self.update_path_display()
+        self.update_nav_buttons()
+
+    def go_to_parent_folder(self):
+        if not self.current_folder:
+            return
+        self.current_folder = self._folder_parent(self.current_folder)
+        self.render_current_folder()
+
+    def on_tree_double_click(self, event):
+        item_id = self.tree.identify_row(event.y)
+        if not item_id:
+            return
+        meta = self.tree_item_meta.get(item_id, {})
+        item_type = meta.get("type")
+        if item_type == "up":
+            self.go_to_parent_folder()
+        elif item_type == "folder":
+            self.current_folder = meta.get("folder_key", "")
+            self.render_current_folder()
     
     def browse_directory(self):
         """浏览并选择下载目录"""
@@ -472,32 +611,25 @@ class LanzouDownloaderGUI:
         self.stop_event.clear()
         self.status_var.set("正在获取文件列表...")
         self.root.update()
+        self._reset_file_browser_state()
 
         # 在列表区域显示获取状态
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        self._clear_tree()
         self.tree.insert("", "end", values=("", "正在获取文件列表中...", "", ""))
+        self.update_path_display()
+        self.update_nav_buttons()
         self.root.update()
 
         def _add_batch(batch):
-            for item in self.tree.get_children():
-                self.tree.delete(item)
+            self._clear_tree()
             for file_info in batch:
-                self.tree.insert("", "end", values=(
-                    file_info["index"],
-                    file_info["name"],
-                    file_info["size"],
-                    file_info["time"],
-                ))
+                self._ingest_file_for_browser(file_info)
+            self.render_current_folder()
 
         def _append_batch(batch):
             for file_info in batch:
-                self.tree.insert("", "end", values=(
-                    file_info["index"],
-                    file_info["name"],
-                    file_info["size"],
-                    file_info["time"],
-                ))
+                self._ingest_file_for_browser(file_info)
+            self.render_current_folder()
 
         def _on_batch(batch):
             self.root.after(0, lambda b=batch: _append_batch(b))
@@ -505,7 +637,6 @@ class LanzouDownloaderGUI:
 
         def _worker():
             try:
-                self.root.after(0, _add_batch, [])
                 if self.custom_url:
                     self.downloader.login_and_get_files(
                         url=self.custom_url,
@@ -515,6 +646,7 @@ class LanzouDownloaderGUI:
                     )
                 else:
                     self.downloader.login_and_get_files(on_batch=_on_batch, stop_event=self.stop_event)
+                self.root.after(0, self.render_current_folder)
                 if self.stop_event.is_set():
                     self.root.after(0, lambda: self.status_var.set(f"已停止加载 - 已加载 {len(self.downloader.files)} 个文件"))
                 else:
@@ -652,27 +784,31 @@ class LanzouDownloaderGUI:
         
         # 添加选中的文件到列表
         for item in selected_items:
-            values = self.tree.item(item)["values"]
+            meta = self.tree_item_meta.get(item, {})
+            if meta.get("type") != "file":
+                continue
+            src = meta.get("file", {}) or {}
             file_info = {
-                "index": values[0],
-                "name": values[1],
-                "size": values[2],
-                "time": values[3],
+                "index": src.get("index", ""),
+                "name": src.get("name", ""),
+                "size": src.get("size", ""),
+                "time": src.get("time", ""),
+                "link": src.get("link"),
             }
-            # 从完整文件列表补齐隐藏字段（如 ajax_file_id）
-            selected_index = str(values[0])
-            matched = next(
-                (f for f in self.downloader.files if str(f.get("index")) == selected_index),
-                None
-            )
-            if matched:
-                file_info["link"] = matched.get("link")
-                if matched.get("ajax_file_id"):
-                    file_info["ajax_file_id"] = matched.get("ajax_file_id")
+            if src.get("ajax_file_id"):
+                file_info["ajax_file_id"] = src.get("ajax_file_id")
+            if src.get("folder_path"):
+                file_info["folder_path"] = src.get("folder_path")
+            if src.get("relative_path"):
+                file_info["relative_path"] = src.get("relative_path")
             self.selected_files.append(file_info)
+
+        if not self.selected_files:
+            messagebox.showwarning("警告", "当前选择中没有可下载文件（文件夹不参与下载）")
+            return
         
         # 更新当前文件标签显示选中的文件
-        selected_names = [f["name"] for f in self.selected_files]
+        selected_names = [f.get("relative_path") or f["name"] for f in self.selected_files]
         if len(selected_names) <= 5:  # 如果选中文件不多，全部显示
             display_text = "已选中: " + ", ".join(selected_names)
         else:  # 如果选中文件太多，只显示前5个和总数
