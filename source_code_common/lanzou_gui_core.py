@@ -24,7 +24,7 @@ except Exception:
 RELEASES_PAGE_URL = "https://gitee.com/greovity/lanzou_manga_downloader/releases"
 GITEE_LATEST_RELEASE_API = "https://gitee.com/api/v5/repos/greovity/lanzou_manga_downloader/releases/latest"
 GITEE_RELEASES_API = "https://gitee.com/api/v5/repos/greovity/lanzou_manga_downloader/releases"
-APP_VERSION_FALLBACK = "v6.2.0"
+APP_VERSION_FALLBACK = "v6.2.1"
 APP_VERSION_FILENAME = "app_version.txt"
 
 
